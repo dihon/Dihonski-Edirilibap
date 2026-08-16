@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.pabilirides.e1vtmv"
+      "bundleIdentifier": "com.emergent.pabilirides.e1vtmv",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Upload your ID and tricycle documents"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +21,8 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.pabilirides.e1vtmv"
+      "package": "com.emergent.pabilirides.e1vtmv",
+      "permissions": ["READ_MEDIA_IMAGES"]
     },
     "web": {
       "bundler": "metro",
@@ -27,6 +31,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Upload your ID and tricycle documents"
+        }
+      ],
       [
         "expo-splash-screen",
         {

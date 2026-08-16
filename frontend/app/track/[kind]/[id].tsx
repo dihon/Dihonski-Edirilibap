@@ -16,7 +16,7 @@ import {
   RIDE_FLOW,
   ORDER_FLOW,
 } from '@/src/theme';
-import { Button, Card, Loading, useToast } from '@/src/components/ui';
+import { Button, Card, Input, Loading, useToast } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
 import { api } from '@/src/api';
 
@@ -28,6 +28,11 @@ export default function Track() {
   const isRide = kind === 'ride';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [gcashRef, setGcashRef] = useState('');
+  const [payBusy, setPayBusy] = useState(false);
+  const [stars, setStars] = useState(0);
+  const [comment, setComment] = useState('');
+  const [rateBusy, setRateBusy] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -57,6 +62,35 @@ export default function Track() {
       load();
     } catch (e: any) {
       toast(e.message || 'Could not cancel', 'error');
+    }
+  };
+
+  const submitPay = async () => {
+    if (gcashRef.trim().length < 4) return toast('Enter a valid GCash reference number', 'error');
+    setPayBusy(true);
+    try {
+      await api.submitPayment(isRide ? 'rides' : 'orders', id, gcashRef.trim());
+      toast('Reference sent! Waiting for confirmation.', 'success');
+      setGcashRef('');
+      load();
+    } catch (e: any) {
+      toast(e.message || 'Could not submit', 'error');
+    } finally {
+      setPayBusy(false);
+    }
+  };
+
+  const submitRating = async () => {
+    if (stars === 0) return toast('Please choose a star rating', 'error');
+    setRateBusy(true);
+    try {
+      await api.rate(id, isRide ? 'ride' : 'pabili', stars, comment.trim());
+      toast('Salamat sa iyong rating!', 'success');
+      load();
+    } catch (e: any) {
+      toast(e.message || 'Could not submit rating', 'error');
+    } finally {
+      setRateBusy(false);
     }
   };
 
@@ -151,6 +185,11 @@ export default function Track() {
                 <Text style={styles.driverTrike}>
                   <Ionicons name="bicycle" size={14} color={COLORS.muted} /> {data.driver_tricycle || 'Tricycle'}
                 </Text>
+                {data.driver_rating_count > 0 ? (
+                  <Text style={styles.driverRating}>
+                    <Ionicons name="star" size={13} color={COLORS.warning} /> {Number(data.driver_rating).toFixed(1)} ({data.driver_rating_count})
+                  </Text>
+                ) : null}
               </View>
               {data.driver_phone ? (
                 <Pressable
@@ -204,12 +243,82 @@ export default function Track() {
           )}
         </Card>
 
+        {data.payment_method === 'gcash' && !cancelled ? (
+          <Card style={{ marginTop: SPACING.lg }}>
+            <Text style={styles.cardLabel}>GCASH PAYMENT</Text>
+            {data.payment_status === 'confirmed' ? (
+              <View style={styles.payRow}>
+                <Ionicons name="checkmark-circle" size={22} color={COLORS.success} />
+                <Text style={styles.payText}>Payment confirmed{data.gcash_ref ? ` · Ref ${data.gcash_ref}` : ''}</Text>
+              </View>
+            ) : data.payment_status === 'submitted' ? (
+              <View style={styles.payRow}>
+                <Ionicons name="time-outline" size={22} color={COLORS.warning} />
+                <Text style={styles.payText}>Ref {data.gcash_ref} sent. Waiting for confirmation.</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.payHint}>
+                  Send {peso(isRide ? data.fare : data.estimated_total)} via GCash, then enter the reference number below.
+                </Text>
+                <Input
+                  testID="gcash-ref-input"
+                  placeholder="GCash reference no."
+                  value={gcashRef}
+                  onChangeText={setGcashRef}
+                  keyboardType="number-pad"
+                />
+                <Button testID="submit-gcash-button" title="Submit Reference" onPress={submitPay} loading={payBusy} />
+              </>
+            )}
+          </Card>
+        ) : null}
+
+        {completed && hasDriver && !data.rated ? (
+          <Card style={{ marginTop: SPACING.lg }}>
+            <Text style={styles.cardLabel}>RATE YOUR DRIVER</Text>
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Pressable key={s} testID={`star-${s}`} onPress={() => setStars(s)} hitSlop={6}>
+                  <Ionicons name={s <= stars ? 'star' : 'star-outline'} size={38} color={COLORS.warning} />
+                </Pressable>
+              ))}
+            </View>
+            <Input
+              testID="rating-comment"
+              placeholder="Add a comment (optional)"
+              value={comment}
+              onChangeText={setComment}
+              multiline
+            />
+            <Button testID="submit-rating-button" title="Submit Rating" onPress={submitRating} loading={rateBusy} />
+          </Card>
+        ) : null}
+
+        {completed && hasDriver && data.rated ? (
+          <View style={styles.ratedNote}>
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
+            <Text style={styles.ratedText}>You rated this trip {data.rating_stars}★</Text>
+          </View>
+        ) : null}
+
+        {completed && hasDriver ? (
+          <Button
+            testID="report-button"
+            title="Report a problem with driver"
+            variant="outline"
+            icon="flag-outline"
+            onPress={() => router.push(`/report/${kind}/${id}` as any)}
+            style={{ marginTop: SPACING.lg }}
+          />
+        ) : null}
+
         {completed || cancelled ? (
           <Button
             title="Back to Home"
             variant="outline"
             onPress={() => router.replace('/(customer)')}
-            style={{ marginTop: SPACING.xl }}
+            style={{ marginTop: SPACING.lg }}
             testID="back-home-button"
           />
         ) : null}
@@ -286,6 +395,13 @@ const styles = StyleSheet.create({
   driverInitials: { color: '#fff', fontSize: FONT.lg, fontWeight: WEIGHT.medium },
   driverName: { fontSize: FONT.lg, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   driverTrike: { fontSize: FONT.base, color: COLORS.muted, marginTop: 2 },
+  driverRating: { fontSize: FONT.sm, color: COLORS.onSurface, marginTop: 4 },
+  payRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  payText: { flex: 1, fontSize: FONT.base, color: COLORS.onSurface, lineHeight: 20 },
+  payHint: { fontSize: FONT.base, color: COLORS.muted, marginBottom: SPACING.md, lineHeight: 20 },
+  starsRow: { flexDirection: 'row', justifyContent: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
+  ratedNote: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, justifyContent: 'center', marginTop: SPACING.lg },
+  ratedText: { fontSize: FONT.base, color: COLORS.success, fontWeight: WEIGHT.medium },
   callBtn: {
     width: 52,
     height: 52,

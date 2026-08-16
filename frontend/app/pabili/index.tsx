@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso } from '@/src/theme';
 import { Button, Input, useToast, Loading } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
+import { PaymentSelector, PayMethod } from '@/src/components/PaymentSelector';
 import { api } from '@/src/api';
 
 export default function Pabili() {
@@ -85,6 +86,7 @@ function CustomTab() {
   const [list, setList] = useState('');
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+  const [payment, setPayment] = useState<PayMethod>('cash');
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
@@ -98,6 +100,7 @@ function CustomTab() {
         delivery_address: address.trim(),
         note: note.trim(),
         items: [],
+        payment_method: payment,
       })) as any;
       toast('Pabili request sent!', 'success');
       router.replace(`/track/pabili/${order.id}` as any);
@@ -145,9 +148,11 @@ function CustomTab() {
         <View style={styles.info}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.info} />
           <Text style={styles.infoText}>
-            A {peso(35)} service fee is added. You pay the item cost + fee in cash on delivery.
+            A {peso(35)} service fee is added. You pay the item cost + fee on delivery.
           </Text>
         </View>
+        <Text style={[styles.label, { marginTop: SPACING.lg }]}>Payment method</Text>
+        <PaymentSelector value={payment} onChange={setPayment} />
       </KeyboardAwareScrollView>
       <KeyboardStickyView>
         <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.md }]}>

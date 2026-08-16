@@ -1,0 +1,47 @@
+{
+  "summary": "Round 2 features (driver application + admin approval, image object storage w/ token-auth serving, ratings, driver earnings, GCash manual payment, complaints, ban) validated end-to-end. Backend: 15/15 new-feature pytest cases pass + 26/26 regression cases from iteration_1 still pass (41/41 total). Frontend: verified admin login → Admin Overview shows the two new cards ('Driver Applications' with pending count + 'Complaints' with open count and red dot indicator), tapping each navigates to /admin/applications and /admin/complaints which render pending list w/ document thumbnails and complaint list w/ category badge + Suspend Driver / Reviewed actions. Driver phone-login (Mang Tonyo) → new Earnings tab renders TODAY / This Week / All Time / rating (5.0 based on 1 customer rating) values pulled from GET /api/driver/earnings correctly. Image upload flow validated via backend endpoint (POST /api/upload returns storage path, GET /api/files/{path}?token= returns bytes for owner + admin, 401 without token, 403 for other users). GCash flow (booking payment_method='gcash' → customer submits gcash_ref → payment_status=submitted → driver confirms → confirmed) works and non-driver/non-admin gets 403 on confirm. Ratings flow: 200 on first rate, 409 on duplicate, driver rating_avg/rating_count updated. Complaint flow: invalid category → 422, valid → 200, admin list + resolve works, banned driver cannot go online (403). Regression: existing auth, ride booking, pabili flows all intact.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "styles (SHADOW.card in /app/frontend/src/theme.ts and multiple screens)", "issue": "React Native Web deprecation warning still present: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Cosmetic on web preview; migrate to boxShadow for future-proofing."},
+      {"component": "Pressable / interactive props", "issue": "React Native Web deprecation warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Cosmetic; move any JSX pointerEvents prop into style."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_new_features.xml",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional polish) Migrate SHADOW.card and other shadow* usages in /app/frontend/src/theme.ts to boxShadow to silence RN Web deprecation warnings.",
+    "(Optional polish) Move any pointerEvents JSX prop into style={{ pointerEvents: ... }}.",
+    "Test data note (non-blocking): pytest applications contain fake doc paths ('a','b','c') so their thumbnails render broken icons on /admin/applications. This is only test-data pollution — real uploads (via POST /api/upload) return valid storage paths and render fine in AuthImage. Optionally seed cleanup of TEST_ users if you want a pristine admin screen for demos."
+  ],
+  "critical_code_review_comments": [
+    "server.py grown to 908 lines (up from 570) — still readable but reaching the split threshold; consider extracting drivers/apps, ratings, payments, complaints into routers if adding more features.",
+    "GET /api/files/{path} correctly enforces token auth and owner/admin scope (line 573-587). Good.",
+    "public_user() correctly exposes driver_status, banned, rating_avg, rating_count without leaking password/_id.",
+    "driver_status endpoint (line 481) checks banned + approved before allowing online — matches product spec (pending/rejected/banned all blocked).",
+    "compute of driver earnings correctly separates ride 'fare' vs order 'service_fee' (line 626) so item cost is not counted as driver revenue.",
+    "Rating dedup enforced via job.rated flag + 409 (line 658-659). Good.",
+    "Complaint category whitelist enforced (line 710-711). Good.",
+    "seed() migration marks pre-existing drivers as 'approved' so they don't get blocked after this feature rollout (line 880-883). Good backwards-compat.",
+    "Object storage lazy-init w/ retry on 503 for expired storage_key (line 121-130). Good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (created)"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 new + 26/26 regression = 41/41)",
+    "frontend": "100% for verified flows (admin login + overview + applications page + complaints page + driver earnings screen)"
+  },
+  "seed_data_creation": "Backend tests created three TEST_ prefixed customer accounts (one applicant approved, one applicant rejected with reason 'blurry docs', one paying/rating/complaining customer). One completed gcash ride, one submitted+confirmed payment, one 5-star rating, one open→resolved complaint on seeded driver 'Mang Tonyo'. Test data is scoped with TEST_ prefix; the seeded Mang Tonyo/Kuya Ben drivers and admin remain usable.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base = process.env.EXPO_PUBLIC_BACKEND_URL + '/api'. Admin: admin@tagkawayan.ph / admin12345 (Email tab, testID login-mode-email). Seeded drivers on Phone tab (login-mode-phone): '+639171112201'/'Mang Tonyo' (TRK-101) and '+639171112202'/'Kuya Ben' (TRK-205). Round 2 endpoints all under /api: /upload, /files/{path}?token=, /driver/apply, /driver/application, /driver/earnings, /admin/applications[/{uid}/approve|reject], /admin/complaints[/{cid}/resolve], /admin/users/{uid}/ban, /ratings, /pay/{rides|orders}/{id}[/confirm], /complaints. Reuse /app/backend/tests/test_new_features.py + /app/backend/tests/backend_test.py. testIDs on new admin screens: admin-applications-card, admin-complaints-card.",
+  "rca_of_issue": "N/A — no bugs found."
+}

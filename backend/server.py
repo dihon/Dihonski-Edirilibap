@@ -1,4 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Depends, UploadFile, File, Query
+from fastapi.responses import Response
+from fastapi.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -7,6 +9,8 @@ import logging
 import uuid
 import jwt
 import bcrypt
+import requests
+import mimetypes
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -63,6 +67,10 @@ def public_user(u: dict) -> dict:
         'role': u.get('role', 'customer'),
         'online': u.get('online', False),
         'tricycle_no': u.get('tricycle_no'),
+        'driver_status': u.get('driver_status', 'none'),
+        'banned': u.get('banned', False),
+        'rating_avg': u.get('rating_avg', 0),
+        'rating_count': u.get('rating_count', 0),
     }
 
 async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
@@ -85,6 +93,49 @@ def require_role(*roles):
             raise HTTPException(status_code=403, detail='Insufficient permissions')
         return user
     return dep
+
+# ----------------------------- Object Storage -----------------------------
+
+STORAGE_BASE = (os.environ.get('INTEGRATION_PROXY_URL') or '').strip() or 'https://integrations.emergentagent.com'
+STORAGE_URL = STORAGE_BASE.rstrip('/') + '/objstore/api/v1/storage'
+EMERGENT_KEY = os.environ.get('EMERGENT_LLM_KEY')
+APP_NAME = 'tagkawayan-ride-pabili'
+_storage_key = None
+
+def _init_storage():
+    global _storage_key
+    if _storage_key:
+        return _storage_key
+    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_KEY}, timeout=30)
+    resp.raise_for_status()
+    _storage_key = resp.json()["storage_key"]
+    return _storage_key
+
+def _put_object(path: str, data: bytes, content_type: str) -> dict:
+    key = _init_storage()
+    resp = requests.put(f"{STORAGE_URL}/objects/{path}",
+                        headers={"X-Storage-Key": key, "Content-Type": content_type}, data=data, timeout=120)
+    resp.raise_for_status()
+    return resp.json()
+
+def _get_object(path: str):
+    global _storage_key
+    key = _init_storage()
+    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    if resp.status_code == 503:
+        _storage_key = None
+        key = _init_storage()
+        resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": key}, timeout=60)
+    resp.raise_for_status()
+    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+
+async def user_from_token(token: str):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+        uid = payload.get('sub')
+    except Exception:
+        return None
+    return await db.users.find_one({'id': uid}, {'_id': 0})
 
 # ----------------------------- Models -----------------------------
 
@@ -109,6 +160,7 @@ class RideBody(BaseModel):
     dropoff: str
     passengers: int = 1
     note: Optional[str] = None
+    payment_method: str = 'cash'
 
 class OrderItem(BaseModel):
     name: str
@@ -124,6 +176,7 @@ class OrderBody(BaseModel):
     custom_list: Optional[str] = None
     note: Optional[str] = None
     delivery_address: str
+    payment_method: str = 'cash'
 
 class StatusBody(BaseModel):
     status: str
@@ -134,6 +187,36 @@ class OnlineBody(BaseModel):
 class RoleBody(BaseModel):
     role: str
     tricycle_no: Optional[str] = None
+
+class ApplyBody(BaseModel):
+    tricycle_no: str
+    id_card: str
+    orcr: str
+    tricycle_photo: str
+
+class ReasonBody(BaseModel):
+    reason: Optional[str] = None
+
+class BanBody(BaseModel):
+    banned: bool
+    reason: Optional[str] = None
+
+class RatingBody(BaseModel):
+    job_id: str
+    job_type: str
+    stars: int
+    comment: Optional[str] = None
+
+class PayBody(BaseModel):
+    gcash_ref: str
+
+class ComplaintBody(BaseModel):
+    job_id: str
+    job_type: str
+    category: str
+    description: Optional[str] = None
+
+COMPLAINT_CATEGORIES = ['rude', 'scammer', 'unprofessional', 'abusive', 'drunk', 'need_police_action']
 
 # ----------------------------- Fare -----------------------------
 
@@ -163,6 +246,10 @@ async def signup(body: SignupBody):
         'name': name,
         'role': 'customer',
         'online': False,
+        'driver_status': 'none',
+        'banned': False,
+        'rating_avg': 0,
+        'rating_count': 0,
         'created_at': now_iso(),
     }
     if body.email:
@@ -241,6 +328,9 @@ async def create_ride(body: RideBody, user: dict = Depends(get_current_user)):
         'note': body.note,
         'fare': fare,
         'payment': 'cash',
+        'payment_method': body.payment_method,
+        'payment_status': 'unpaid' if body.payment_method == 'gcash' else 'cash_on_delivery',
+        'gcash_ref': None,
         'status': 'requested',
         'driver_id': None,
         'driver_name': None,
@@ -277,6 +367,8 @@ async def accept_ride(ride_id: str, user: dict = Depends(require_role('driver'))
             'driver_name': user['name'],
             'driver_phone': user.get('phone'),
             'driver_tricycle': user.get('tricycle_no'),
+            'driver_rating': user.get('rating_avg', 0),
+            'driver_rating_count': user.get('rating_count', 0),
             'updated_at': now_iso(),
         }},
     )
@@ -323,6 +415,9 @@ async def create_order(body: OrderBody, user: dict = Depends(get_current_user)):
         'service_fee': SERVICE_FEE,
         'estimated_total': round(items_total + SERVICE_FEE, 2),
         'payment': 'cash',
+        'payment_method': body.payment_method,
+        'payment_status': 'unpaid' if body.payment_method == 'gcash' else 'cash_on_delivery',
+        'gcash_ref': None,
         'status': 'requested',
         'driver_id': None,
         'driver_name': None,
@@ -356,6 +451,8 @@ async def accept_order(order_id: str, user: dict = Depends(require_role('driver'
             'driver_name': user['name'],
             'driver_phone': user.get('phone'),
             'driver_tricycle': user.get('tricycle_no'),
+            'driver_rating': user.get('rating_avg', 0),
+            'driver_rating_count': user.get('rating_count', 0),
             'updated_at': now_iso(),
         }},
     )
@@ -383,13 +480,18 @@ async def order_status(order_id: str, body: StatusBody, user: dict = Depends(get
 
 @api_router.post('/driver/status')
 async def driver_status(body: OnlineBody, user: dict = Depends(require_role('driver'))):
+    fresh = await db.users.find_one({'id': user['id']}, {'_id': 0})
+    if fresh.get('banned'):
+        raise HTTPException(403, 'Your account is suspended. Please contact the admin.')
+    if fresh.get('driver_status') != 'approved':
+        raise HTTPException(403, 'Your driver application is not yet approved.')
     await db.users.update_one({'id': user['id']}, {'$set': {'online': body.online}})
     return {'online': body.online}
 
 @api_router.get('/driver/requests')
 async def driver_requests(user: dict = Depends(require_role('driver'))):
     fresh = await db.users.find_one({'id': user['id']}, {'_id': 0})
-    if not fresh or not fresh.get('online'):
+    if not fresh or not fresh.get('online') or fresh.get('banned'):
         return {'online': False, 'rides': [], 'orders': []}
     rides = await db.rides.find({'status': 'requested'}, {'_id': 0}).sort('created_at', -1).to_list(100)
     orders = await db.orders.find({'status': 'requested'}, {'_id': 0}).sort('created_at', -1).to_list(100)
@@ -421,6 +523,8 @@ async def admin_stats(user: dict = Depends(require_role('admin'))):
         'active_rides': await db.rides.count_documents({'status': {'$nin': ['completed', 'cancelled']}}),
         'active_orders': await db.orders.count_documents({'status': {'$nin': ['completed', 'cancelled']}}),
         'online_drivers': await db.users.count_documents({'role': 'driver', 'online': True}),
+        'pending_applications': await db.users.count_documents({'driver_status': 'pending'}),
+        'open_complaints': await db.complaints.count_documents({'status': 'open'}),
     }
 
 @api_router.get('/admin/users')
@@ -445,6 +549,229 @@ async def admin_orders(user: dict = Depends(require_role('admin'))):
     rides = await db.rides.find({}, {'_id': 0}).sort('created_at', -1).to_list(300)
     orders = await db.orders.find({}, {'_id': 0}).sort('created_at', -1).to_list(300)
     return {'rides': rides, 'orders': orders}
+
+# ----------------------------- File upload / storage -----------------------------
+
+@api_router.post('/upload')
+async def upload_file(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(413, 'File too large (max 8MB)')
+    ext = (file.filename or 'img.jpg').split('.')[-1].lower()
+    if ext not in ('jpg', 'jpeg', 'png', 'webp', 'heic'):
+        ext = 'jpg'
+    path = f"{APP_NAME}/uploads/{user['id']}/{new_id()}.{ext}"
+    ct = file.content_type or mimetypes.guess_type(f'x.{ext}')[0] or 'image/jpeg'
+    try:
+        await run_in_threadpool(_put_object, path, data, ct)
+    except Exception:
+        logger.exception('upload failed')
+        raise HTTPException(502, 'Upload failed, please try again')
+    return {'path': path}
+
+@api_router.get('/files/{path:path}')
+async def serve_file(path: str, token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+    user = None
+    if token:
+        user = await user_from_token(token)
+    elif authorization and authorization.lower().startswith('bearer '):
+        user = await user_from_token(authorization.split(' ', 1)[1])
+    if not user:
+        raise HTTPException(401, 'Not authenticated')
+    if user.get('role') != 'admin' and f"/uploads/{user['id']}/" not in f"/{path}":
+        raise HTTPException(403, 'Not allowed')
+    try:
+        content, ct = await run_in_threadpool(_get_object, path)
+    except Exception:
+        raise HTTPException(404, 'File not found')
+    return Response(content=content, media_type=ct)
+
+# ----------------------------- Driver application -----------------------------
+
+@api_router.post('/driver/apply')
+async def driver_apply(body: ApplyBody, user: dict = Depends(get_current_user)):
+    if user.get('role') == 'driver' and user.get('driver_status') == 'approved':
+        raise HTTPException(400, 'You are already an approved driver')
+    await db.users.update_one({'id': user['id']}, {'$set': {
+        'driver_status': 'pending',
+        'tricycle_no': body.tricycle_no.strip(),
+        'driver_docs': {'id_card': body.id_card, 'orcr': body.orcr, 'tricycle_photo': body.tricycle_photo},
+        'rejection_reason': None,
+        'applied_at': now_iso(),
+    }})
+    return {'ok': True, 'driver_status': 'pending'}
+
+@api_router.get('/driver/application')
+async def driver_application(user: dict = Depends(get_current_user)):
+    u = await db.users.find_one({'id': user['id']}, {'_id': 0, 'password': 0})
+    return {
+        'driver_status': u.get('driver_status', 'none'),
+        'rejection_reason': u.get('rejection_reason'),
+        'tricycle_no': u.get('tricycle_no'),
+        'driver_docs': u.get('driver_docs'),
+    }
+
+# ----------------------------- Driver earnings -----------------------------
+
+@api_router.get('/driver/earnings')
+async def driver_earnings(user: dict = Depends(require_role('driver'))):
+    rides = await db.rides.find({'driver_id': user['id'], 'status': 'completed'}, {'_id': 0}).to_list(2000)
+    orders = await db.orders.find({'driver_id': user['id'], 'status': 'completed'}, {'_id': 0}).to_list(2000)
+    now = datetime.now(timezone.utc)
+    start_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_week = start_today - timedelta(days=now.weekday())
+    today = week = total = 0.0
+    c_today = c_week = 0
+    for j in rides + orders:
+        amt = j.get('fare', 0) if j.get('type') == 'ride' else j.get('service_fee', 0)
+        total += amt
+        try:
+            t = datetime.fromisoformat(j.get('updated_at'))
+        except Exception:
+            t = now
+        if t >= start_week:
+            week += amt
+            c_week += 1
+        if t >= start_today:
+            today += amt
+            c_today += 1
+    return {
+        'today': round(today, 2), 'week': round(week, 2), 'total': round(total, 2),
+        'count': len(rides) + len(orders), 'count_today': c_today, 'count_week': c_week,
+        'rating_avg': user.get('rating_avg', 0), 'rating_count': user.get('rating_count', 0),
+    }
+
+# ----------------------------- Ratings -----------------------------
+
+@api_router.post('/ratings')
+async def create_rating(body: RatingBody, user: dict = Depends(get_current_user)):
+    coll = db.rides if body.job_type == 'ride' else db.orders
+    job = await coll.find_one({'id': body.job_id}, {'_id': 0})
+    if not job:
+        raise HTTPException(404, 'Job not found')
+    if job.get('customer_id') != user['id']:
+        raise HTTPException(403, 'Not allowed')
+    if job.get('status') != 'completed':
+        raise HTTPException(400, 'You can only rate after completion')
+    if not job.get('driver_id'):
+        raise HTTPException(400, 'No driver to rate')
+    if job.get('rated'):
+        raise HTTPException(409, 'You already rated this trip')
+    stars = max(1, min(5, int(body.stars)))
+    await db.ratings.insert_one({
+        'id': new_id(), 'driver_id': job['driver_id'], 'customer_id': user['id'],
+        'customer_name': user['name'], 'job_id': body.job_id, 'job_type': body.job_type,
+        'stars': stars, 'comment': (body.comment or '').strip(), 'created_at': now_iso(),
+    })
+    await coll.update_one({'id': body.job_id}, {'$set': {'rated': True, 'rating_stars': stars}})
+    agg = await db.ratings.aggregate([
+        {'$match': {'driver_id': job['driver_id']}},
+        {'$group': {'_id': None, 'avg': {'$avg': '$stars'}, 'cnt': {'$sum': 1}}},
+    ]).to_list(1)
+    if agg:
+        await db.users.update_one({'id': job['driver_id']}, {'$set': {
+            'rating_avg': round(agg[0]['avg'], 2), 'rating_count': agg[0]['cnt'],
+        }})
+    return {'ok': True}
+
+# ----------------------------- GCash manual payment -----------------------------
+
+def _job_coll(job_type: str):
+    return db.rides if job_type in ('ride', 'rides') else db.orders
+
+@api_router.post('/pay/{job_type}/{job_id}')
+async def submit_payment(job_type: str, job_id: str, body: PayBody, user: dict = Depends(get_current_user)):
+    coll = _job_coll(job_type)
+    job = await coll.find_one({'id': job_id}, {'_id': 0})
+    if not job:
+        raise HTTPException(404, 'Not found')
+    if job.get('customer_id') != user['id']:
+        raise HTTPException(403, 'Not allowed')
+    await coll.update_one({'id': job_id}, {'$set': {
+        'payment_status': 'submitted', 'gcash_ref': body.gcash_ref.strip(), 'updated_at': now_iso(),
+    }})
+    return {'ok': True}
+
+@api_router.post('/pay/{job_type}/{job_id}/confirm')
+async def confirm_payment(job_type: str, job_id: str, user: dict = Depends(get_current_user)):
+    coll = _job_coll(job_type)
+    job = await coll.find_one({'id': job_id}, {'_id': 0})
+    if not job:
+        raise HTTPException(404, 'Not found')
+    if user['id'] != job.get('driver_id') and user.get('role') != 'admin':
+        raise HTTPException(403, 'Not allowed')
+    await coll.update_one({'id': job_id}, {'$set': {'payment_status': 'confirmed', 'updated_at': now_iso()}})
+    return {'ok': True}
+
+# ----------------------------- Complaints -----------------------------
+
+@api_router.post('/complaints')
+async def create_complaint(body: ComplaintBody, user: dict = Depends(get_current_user)):
+    if body.category not in COMPLAINT_CATEGORIES:
+        raise HTTPException(422, 'Invalid category')
+    coll = _job_coll(body.job_type)
+    job = await coll.find_one({'id': body.job_id}, {'_id': 0})
+    if not job or job.get('customer_id') != user['id']:
+        raise HTTPException(403, 'Not allowed')
+    if not job.get('driver_id'):
+        raise HTTPException(400, 'No driver on this job')
+    await db.complaints.insert_one({
+        'id': new_id(), 'customer_id': user['id'], 'customer_name': user['name'],
+        'driver_id': job['driver_id'], 'driver_name': job.get('driver_name'),
+        'job_id': body.job_id, 'job_type': body.job_type, 'category': body.category,
+        'description': (body.description or '').strip(), 'status': 'open', 'created_at': now_iso(),
+    })
+    await coll.update_one({'id': body.job_id}, {'$set': {'complaint_filed': True}})
+    return {'ok': True}
+
+# ----------------------------- Admin: applications, complaints, ban -----------------------------
+
+@api_router.get('/admin/applications')
+async def admin_applications(user: dict = Depends(require_role('admin'))):
+    return await db.users.find(
+        {'driver_status': {'$in': ['pending', 'approved', 'rejected']}},
+        {'_id': 0, 'password': 0},
+    ).sort('applied_at', -1).to_list(300)
+
+@api_router.post('/admin/applications/{uid}/approve')
+async def approve_application(uid: str, user: dict = Depends(require_role('admin'))):
+    res = await db.users.update_one({'id': uid}, {'$set': {
+        'role': 'driver', 'driver_status': 'approved', 'rejection_reason': None,
+    }})
+    if res.matched_count == 0:
+        raise HTTPException(404, 'User not found')
+    return {'ok': True}
+
+@api_router.post('/admin/applications/{uid}/reject')
+async def reject_application(uid: str, body: ReasonBody, user: dict = Depends(require_role('admin'))):
+    res = await db.users.update_one({'id': uid}, {'$set': {
+        'role': 'customer', 'driver_status': 'rejected', 'online': False,
+        'rejection_reason': (body.reason or 'Documents did not meet requirements').strip(),
+    }})
+    if res.matched_count == 0:
+        raise HTTPException(404, 'User not found')
+    return {'ok': True}
+
+@api_router.post('/admin/users/{uid}/ban')
+async def ban_user(uid: str, body: BanBody, user: dict = Depends(require_role('admin'))):
+    upd = {'banned': body.banned, 'ban_reason': (body.reason or '').strip()}
+    if body.banned:
+        upd['online'] = False
+    res = await db.users.update_one({'id': uid}, {'$set': upd})
+    if res.matched_count == 0:
+        raise HTTPException(404, 'User not found')
+    return {'ok': True}
+
+@api_router.get('/admin/complaints')
+async def admin_complaints(user: dict = Depends(require_role('admin'))):
+    return await db.complaints.find({}, {'_id': 0}).sort('created_at', -1).to_list(500)
+
+@api_router.post('/admin/complaints/{cid}/resolve')
+async def resolve_complaint(cid: str, user: dict = Depends(require_role('admin'))):
+    res = await db.complaints.update_one({'id': cid}, {'$set': {'status': 'reviewed'}})
+    if res.matched_count == 0:
+        raise HTTPException(404, 'Complaint not found')
+    return {'ok': True}
 
 # ----------------------------- Seed -----------------------------
 
@@ -546,13 +873,24 @@ async def seed():
         if not await db.users.find_one({'phone': phone}):
             await db.users.insert_one({
                 'id': new_id(), 'name': name, 'phone': phone, 'role': 'driver',
-                'online': False, 'tricycle_no': trike, 'created_at': now_iso(),
+                'online': False, 'tricycle_no': trike, 'driver_status': 'approved',
+                'banned': False, 'rating_avg': 0, 'rating_count': 0, 'created_at': now_iso(),
             })
+    # Migration: ensure existing drivers are marked approved
+    await db.users.update_many(
+        {'role': 'driver', 'driver_status': {'$exists': False}},
+        {'$set': {'driver_status': 'approved', 'banned': False}},
+    )
     logger.info('Seed complete')
 
 @app.on_event('startup')
 async def on_startup():
     await seed()
+    try:
+        await run_in_threadpool(_init_storage)
+        logger.info('Object storage initialized')
+    except Exception:
+        logger.exception('Object storage init failed (uploads may not work)')
 
 app.include_router(api_router)
 

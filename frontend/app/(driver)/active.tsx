@@ -28,6 +28,7 @@ export default function DriverActive() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [payBusy, setPayBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -70,6 +71,19 @@ export default function DriverActive() {
     setRefreshing(false);
   };
 
+  const confirmPay = async (type: 'ride' | 'order', item: any) => {
+    setPayBusy(item.id);
+    try {
+      await api.confirmPayment(type === 'ride' ? 'rides' : 'orders', item.id);
+      toast('GCash payment confirmed', 'success');
+      load();
+    } catch (e: any) {
+      toast(e.message || 'Could not confirm', 'error');
+    } finally {
+      setPayBusy(null);
+    }
+  };
+
   if (loading) return <Loading />;
   const empty = rides.length + orders.length === 0;
 
@@ -91,10 +105,10 @@ export default function DriverActive() {
         ) : (
           <>
             {rides.map((r) => (
-              <JobCard key={r.id} type="ride" item={r} busy={busy === r.id} onAdvance={() => advance('ride', r)} />
+              <JobCard key={r.id} type="ride" item={r} busy={busy === r.id} payBusy={payBusy === r.id} onAdvance={() => advance('ride', r)} onConfirmPay={() => confirmPay('ride', r)} />
             ))}
             {orders.map((o) => (
-              <JobCard key={o.id} type="order" item={o} busy={busy === o.id} onAdvance={() => advance('order', o)} />
+              <JobCard key={o.id} type="order" item={o} busy={busy === o.id} payBusy={payBusy === o.id} onAdvance={() => advance('order', o)} onConfirmPay={() => confirmPay('order', o)} />
             ))}
           </>
         )}
@@ -108,11 +122,15 @@ function JobCard({
   item,
   onAdvance,
   busy,
+  payBusy,
+  onConfirmPay,
 }: {
   type: 'ride' | 'order';
   item: any;
   onAdvance: () => void;
   busy: boolean;
+  payBusy: boolean;
+  onConfirmPay: () => void;
 }) {
   const isRide = type === 'ride';
   const flow = isRide ? RIDE_FLOW : ORDER_FLOW;
@@ -161,6 +179,34 @@ function JobCard({
         ) : null}
       </View>
 
+      {item.payment_method === 'gcash' ? (
+        item.payment_status === 'confirmed' ? (
+          <View style={styles.payLine}>
+            <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
+            <Text style={styles.payLineText}>GCash paid · Ref {item.gcash_ref}</Text>
+          </View>
+        ) : item.payment_status === 'submitted' ? (
+          <Button
+            testID={`confirm-pay-${item.id}`}
+            title={`Confirm GCash · Ref ${item.gcash_ref}`}
+            variant="outline"
+            onPress={onConfirmPay}
+            loading={payBusy}
+            style={{ marginTop: SPACING.md }}
+          />
+        ) : (
+          <View style={styles.payLine}>
+            <Ionicons name="phone-portrait-outline" size={16} color={COLORS.muted} />
+            <Text style={styles.payLineText}>GCash — awaiting customer reference</Text>
+          </View>
+        )
+      ) : (
+        <View style={styles.payLine}>
+          <Ionicons name="cash-outline" size={16} color={COLORS.muted} />
+          <Text style={styles.payLineText}>Cash on delivery</Text>
+        </View>
+      )}
+
       {next ? (
         <Button
           testID={`advance-${item.id}`}
@@ -194,4 +240,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  payLine: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs, marginTop: SPACING.md },
+  payLineText: { fontSize: FONT.base, color: COLORS.muted },
 });

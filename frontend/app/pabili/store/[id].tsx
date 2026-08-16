@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso } from '@/src/theme';
 import { Button, Input, useToast, Loading } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
+import { PaymentSelector, PayMethod } from '@/src/components/PaymentSelector';
 import { api } from '@/src/api';
 
 const SERVICE_FEE = 35;
@@ -20,6 +21,7 @@ export default function StoreScreen() {
   const [store, setStore] = useState<any>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [address, setAddress] = useState('');
+  const [payment, setPayment] = useState<PayMethod>('cash');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export default function StoreScreen() {
         store_name: store.name,
         items,
         delivery_address: address.trim(),
+        payment_method: payment,
       })) as any;
       toast('Pabili request sent!', 'success');
       router.replace(`/track/pabili/${order.id}` as any);
@@ -119,6 +122,9 @@ export default function StoreScreen() {
             </View>
           );
         })}
+
+        <Text style={[styles.section, { marginTop: SPACING.xl }]}>Payment method</Text>
+        <PaymentSelector value={payment} onChange={setPayment} />
       </KeyboardAwareScrollView>
 
       <KeyboardStickyView>

@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW } from '@/src/theme';
 import { Loading } from '@/src/components/ui';
@@ -10,6 +10,7 @@ import { api } from '@/src/api';
 
 export default function AdminOverview() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,6 +60,34 @@ export default function AdminOverview() {
           </Text>
         </View>
 
+        <View style={styles.actions}>
+          <Pressable
+            testID="admin-applications-card"
+            onPress={() => router.push('/admin/applications')}
+            style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.9 }]}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: COLORS.warning + '22' }]}>
+              <Ionicons name="document-attach" size={22} color={COLORS.warning} />
+            </View>
+            <Text style={styles.actionTitle}>Driver Applications</Text>
+            <Text style={styles.actionSub}>{stats.pending_applications} pending review</Text>
+            {stats.pending_applications > 0 ? <View style={styles.dotBadge} /> : null}
+          </Pressable>
+          <Pressable
+            testID="admin-complaints-card"
+            onPress={() => router.push('/admin/complaints')}
+            style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.9 }]}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: COLORS.error + '22' }]}>
+              <Ionicons name="flag" size={22} color={COLORS.error} />
+            </View>
+            <Text style={styles.actionTitle}>Complaints</Text>
+            <Text style={styles.actionSub}>{stats.open_complaints} open</Text>
+            {stats.open_complaints > 0 ? <View style={styles.dotBadge} /> : null}
+          </Pressable>
+        </View>
+
+        <Text style={styles.sectionTitle}>At a glance</Text>
         <View style={styles.grid}>
           {cards.map((c) => (
             <View key={c.label} style={styles.statCard} testID={`stat-${c.label}`}>
@@ -88,6 +117,21 @@ const styles = StyleSheet.create({
   },
   pulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.success },
   onlineText: { color: COLORS.onBrandTertiary, fontSize: FONT.base, fontWeight: WEIGHT.medium },
+  actions: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xl },
+  actionCard: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...SHADOW.card,
+  },
+  actionIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
+  actionTitle: { fontSize: FONT.base, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
+  actionSub: { fontSize: FONT.sm, color: COLORS.muted, marginTop: 2 },
+  dotBadge: { position: 'absolute', top: SPACING.md, right: SPACING.md, width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.error },
+  sectionTitle: { fontSize: FONT.lg, color: COLORS.onSurface, fontWeight: WEIGHT.medium, marginBottom: SPACING.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: SPACING.md },
   statCard: {
     width: '47.5%',

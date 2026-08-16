@@ -1,7 +1,38 @@
 import { storage } from '@/src/utils/storage';
+import { Platform } from 'react-native';
 
 const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
+export const API_BASE = BASE;
 export const TOKEN_KEY = 'tk_auth_token';
+
+export async function getToken(): Promise<string> {
+  return (await storage.secureGet<string>(TOKEN_KEY, '')) || '';
+}
+
+export async function fileUrl(path: string): Promise<string> {
+  const token = await getToken();
+  return `${BASE}/files/${path}?token=${encodeURIComponent(token)}`;
+}
+
+export async function uploadImage(uri: string, name = 'photo.jpg', type = 'image/jpeg'): Promise<string> {
+  const token = await getToken();
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    form.append('file', blob, name);
+  } else {
+    form.append('file', { uri, name, type } as any);
+  }
+  const res = await fetch(`${BASE}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error((data && data.detail) || 'Upload failed');
+  return data.path as string;
+}
 
 async function authHeader(): Promise<Record<string, string>> {
   const token = await storage.secureGet<string>(TOKEN_KEY, '');
@@ -65,6 +96,29 @@ export const api = {
   adminOrders: () => request('/admin/orders'),
   setRole: (id: string, role: string, tricycle_no?: string) =>
     request(`/admin/users/${id}/role`, { method: 'POST', body: { role, tricycle_no } }),
+  // driver application
+  applyDriver: (b: any) => request('/driver/apply', { method: 'POST', body: b }),
+  driverApplication: () => request('/driver/application'),
+  driverEarnings: () => request('/driver/earnings'),
+  // ratings
+  rate: (job_id: string, job_type: string, stars: number, comment?: string) =>
+    request('/ratings', { method: 'POST', body: { job_id, job_type, stars, comment } }),
+  // payment
+  submitPayment: (jobType: 'rides' | 'orders', id: string, gcash_ref: string) =>
+    request(`/pay/${jobType}/${id}`, { method: 'POST', body: { gcash_ref } }),
+  confirmPayment: (jobType: 'rides' | 'orders', id: string) =>
+    request(`/pay/${jobType}/${id}/confirm`, { method: 'POST' }),
+  // complaints
+  fileComplaint: (b: any) => request('/complaints', { method: 'POST', body: b }),
+  // admin: applications / complaints / ban
+  adminApplications: () => request('/admin/applications'),
+  approveApplication: (id: string) => request(`/admin/applications/${id}/approve`, { method: 'POST' }),
+  rejectApplication: (id: string, reason: string) =>
+    request(`/admin/applications/${id}/reject`, { method: 'POST', body: { reason } }),
+  banUser: (id: string, banned: boolean, reason?: string) =>
+    request(`/admin/users/${id}/ban`, { method: 'POST', body: { banned, reason } }),
+  adminComplaints: () => request('/admin/complaints'),
+  resolveComplaint: (id: string) => request(`/admin/complaints/${id}/resolve`, { method: 'POST' }),
 };
 
 export { request };

@@ -33,11 +33,18 @@ Build a mobile app: local tricycle-hailing + market-delivery platform specifical
 - Driver: online toggle, live requests feed, accept, My Jobs status advancement, call customer.
 - Admin: Overview stats, Users management (role change + tricycle assignment), Orders list with filters, Profile.
 - Backend: full ride & pabili lifecycles, driver requests/active/history, admin stats/users/orders. Seeded 20 Tagkawayan landmarks + 4 stores + admin + 2 drivers.
-- Verified: 26/26 backend pytest pass; all critical frontend flows pass.
+
+## Implemented (Round 2 — 2026-06-16)
+- **Driver onboarding + approval**: customer applies from Profile, uploads 3 docs (Gov ID/License, OR/CR, Tricycle photo) to Emergent Object Storage; admin reviews thumbnails and Approves/Rejects (with reason). Only approved, non-banned drivers can go online.
+- **Complaints**: customer files a complaint against the assigned driver after a completed trip — categories: rude, scammer, unprofessional, abusive, drunk, need_police_action + description. Admin reviews, marks reviewed, and can suspend/ban the driver.
+- **Ratings & Trust**: customer rates driver 1–5 stars + comment after completion; driver rating aggregate shown on tracking driver card and driver Earnings.
+- **Driver Earnings**: new Earnings tab — today / this week / all-time totals, job counts, and average rating.
+- **GCash (manual)**: choose Cash or GCash at booking; GCash customer submits a reference number, driver/admin confirms receipt.
+- Verified: 41/41 backend pytest pass; new admin/driver/customer flows pass frontend smoke test.
 
 ## Backlog / Remaining
-- **P1**: Online payment (GCash/card) integration; real map + GPS live tracking; SMS OTP for phone login (currently low-assurance).
-- **P2**: Driver earnings summary; ratings/reviews; scheduled rides; promo/fare surge config in admin; push notifications (on request).
+- **P1**: Real gateway payment (PayMongo/Xendit for auto GCash); real map + GPS live tracking (build-time); SMS OTP for phone login.
+- **P2**: Scheduled rides; promo/fare config in admin; complaint history for customers; driver payout reports; push notifications (on request).
 
 ## Next Tasks
 - Gather feedback on fare zones/pricing accuracy for Tagkawayan.

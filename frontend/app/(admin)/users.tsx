@@ -63,6 +63,21 @@ export default function AdminUsers() {
     }
   };
 
+  const toggleBan = async () => {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      await api.banUser(selected.id, !selected.banned);
+      toast(selected.banned ? 'User reactivated' : 'User suspended', 'info');
+      setSelected(null);
+      load();
+    } catch (e: any) {
+      toast(e.message || 'Could not update', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <Loading />;
 
   return (
@@ -92,6 +107,7 @@ export default function AdminUsers() {
               <Text style={styles.userMeta} numberOfLines={1}>
                 {item.phone || item.email || '—'}
                 {item.tricycle_no ? ` · ${item.tricycle_no}` : ''}
+                {item.banned ? ' · ⛔ Suspended' : ''}
               </Text>
             </View>
             <Badge label={item.role} color={ROLE_COLOR[item.role]} />
@@ -133,6 +149,14 @@ export default function AdminUsers() {
               onPress={() => changeRole('admin')}
               loading={saving}
             />
+            <View style={styles.modalDivider} />
+            <Button
+              testID="ban-toggle"
+              title={selected?.banned ? 'Reactivate Account' : 'Suspend Account'}
+              variant={selected?.banned ? 'outline' : 'danger'}
+              onPress={toggleBan}
+              loading={saving}
+            />
           </View>
         </View>
       </Modal>
@@ -162,4 +186,5 @@ const styles = StyleSheet.create({
   handle: { width: 44, height: 5, borderRadius: 3, backgroundColor: COLORS.borderStrong, alignSelf: 'center', marginBottom: SPACING.md },
   sheetTitle: { fontSize: FONT.xl, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   sheetSub: { fontSize: FONT.base, color: COLORS.muted, marginBottom: SPACING.lg, marginTop: 2 },
+  modalDivider: { height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.md },
 });

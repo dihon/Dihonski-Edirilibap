@@ -8,6 +8,7 @@ import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso } from '@/src/theme
 import { Button, Input, Card, useToast } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
 import { PickerModal } from '@/src/components/PickerModal';
+import { PaymentSelector, PayMethod } from '@/src/components/PaymentSelector';
 import { api } from '@/src/api';
 
 export default function BookRide() {
@@ -19,6 +20,7 @@ export default function BookRide() {
   const [dropoff, setDropoff] = useState('');
   const [passengers, setPassengers] = useState(1);
   const [note, setNote] = useState('');
+  const [payment, setPayment] = useState<PayMethod>('cash');
   const [fare, setFare] = useState<number | null>(null);
   const [picker, setPicker] = useState<null | 'pickup' | 'dropoff'>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +42,7 @@ export default function BookRide() {
     if (pickup === dropoff) return toast('Pickup and drop-off must be different', 'error');
     setSubmitting(true);
     try {
-      const ride = (await api.createRide({ pickup, dropoff, passengers, note })) as any;
+      const ride = (await api.createRide({ pickup, dropoff, passengers, note, payment_method: payment })) as any;
       toast('Finding a driver near you...', 'success');
       router.replace(`/track/ride/${ride.id}` as any);
     } catch (e: any) {
@@ -106,10 +108,8 @@ export default function BookRide() {
           multiline
         />
 
-        <View style={styles.payRow}>
-          <Ionicons name="cash-outline" size={20} color={COLORS.brandPrimary} />
-          <Text style={styles.payText}>Cash payment — bayad direkta sa driver</Text>
-        </View>
+        <Text style={styles.sectionLabel}>Payment method</Text>
+        <PaymentSelector value={payment} onChange={setPayment} />
       </KeyboardAwareScrollView>
 
       <KeyboardStickyView>
