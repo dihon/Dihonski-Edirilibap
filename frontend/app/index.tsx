@@ -1,18 +1,18 @@
 import { Redirect } from "expo-router";
-import { View, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/src/auth";
-import { COLORS } from "@/src/theme";
+import { Splash } from "@/src/components/Splash";
 
 export default function Index() {
   const { user, loading } = useAuth();
+  const [minElapsed, setMinElapsed] = useState(false);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.surface }}>
-        <ActivityIndicator size="large" color={COLORS.brand} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    const t = setTimeout(() => setMinElapsed(true), 1600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading || !minElapsed) return <Splash />;
 
   if (!user) return <Redirect href="/(auth)/login" />;
   if (user.role === "driver") return <Redirect href="/(driver)" />;
