@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "edirilibap",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#3E6DB3"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.emergent.pabilirides.e1vtmv",
@@ -41,9 +41,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-image.png",
-          "imageWidth": 200,
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#3E6DB3"
         }
       ]
     ],
