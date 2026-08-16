@@ -1,0 +1,169 @@
+{
+  "app_name": "Tagkawayan Ride & Pabili",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A highly accessible, tactile, and friendly local companion that makes booking rides and market runs in Tagkawayan feel effortless, safe, and community-driven.",
+  "color": {
+    "surface": "#FDFDF9",
+    "onSurface": "#1E201B",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1E201B",
+    "surfaceTertiary": "#F1F3EA",
+    "onSurfaceTertiary": "#2E3A24",
+    "surfaceInverse": "#2B3624",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#2B8A44",
+    "brandPrimary": "#2B8A44",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#E8702A",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E2F1E5",
+    "onBrandTertiary": "#1C592C",
+    "success": "#28A745",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FFB020",
+    "onWarning": "#1E201B",
+    "error": "#D94532",
+    "onError": "#FFFFFF",
+    "info": "#4A544A",
+    "onInfo": "#FFFFFF",
+    "border": "#E3E7DB",
+    "borderStrong": "#B4BEA6",
+    "divider": "#E3E7DB"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous padding everywhere to prevent mis-taps. Minimum 56pt height for list items and buttons. Use xl (24pt) between major sections.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Use on the bottom tab bar and bottom-sheet headers to follow native iOS patterns.",
+      "Ensure a translucent tinted base (>=70% opacity) beneath foreground text over glass.",
+      "For low-end Android (common in rural areas), fallback to solid surfaceSecondary to maintain performance."
+    ],
+    "dont's": [
+      "Do not use on generic list rows, form inputs, or standard cards.",
+      "Avoid heavy blur overlays on map interfaces that might cause rendering stutters on low-end devices."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Home",
+      "purpose": "Provide immediate, high-contrast access to the two core services: Book a Ride and Pabili Market.",
+      "states": {
+        "loading": "A friendly skeleton loader for the main cards and recent activity.",
+        "empty": "No recent activity yet. 'Ready for your first ride or market run?' with an illustration.",
+        "error": "Failed to load recent activity. Friendly 'Oops, connection hiccup' with a retry button."
+      },
+      "layout": "Header with user greeting and current local weather/time (to feel localized). Two massive, chunky touch cards stacked vertically or side-by-side (if width allows). Card 1 (Book a Ride): brandPrimary tinted background with the tricycle image and gradient scrim. Card 2 (Pabili): brandSecondary tinted background with market produce image and gradient scrim. Below them: 'Recent Activity' list."
+    },
+    {
+      "name": "Book a Ride",
+      "purpose": "Allow users to set pickup and dropoff within Tagkawayan and see the COD fare estimate.",
+      "states": {
+        "loading": "Skeleton placeholders for address fields and map initialization.",
+        "empty": "Map empty state before selecting.",
+        "error": "Unable to calculate route. 'Can't reach the map service right now.' + Retry."
+      },
+      "layout": "Full-screen map view in background. Bottom sheet covering the bottom 40% with stacked, chunky inputs for 'Pickup' and 'Dropoff'. Floating action button (FAB) for 'My Location'. Primary sticky CTA 'Find a Driver' securely anchored at the bottom with safe area padding. Uses a 500-weight typography for legibility."
+    },
+    {
+      "name": "Pabili Store Browse",
+      "purpose": "Let users type a custom shopping list or select preset local store items.",
+      "states": {
+        "loading": "Skeleton grid for store categories.",
+        "empty": "No stores open? 'Stores are sleeping. Try a custom list!'",
+        "error": "Failed to load catalog. Retry button."
+      },
+      "layout": "Tabs at the top: 'Browse Preset' | 'Type Custom List'. Browse tab: A 2-column grid (flexWrap: wrap, space-between) of tactile categories (Produce, Meat, Groceries). Custom list tab: A large, comfortable text area (surfaceTertiary background) filling the screen, asking 'What do you need?'. Sticky CTA 'Request Pabili' fixed to the bottom of the screen above keyboard."
+    },
+    {
+      "name": "Order Tracking",
+      "purpose": "Show live status of the ride or delivery with driver details.",
+      "states": {
+        "loading": "Spinner centered.",
+        "empty": "Not applicable.",
+        "error": "Lost connection. 'Reconnecting to driver...'"
+      },
+      "layout": "Large status typography at the top ('Driver is on the way!'). A pulsing progress indicator. A chunky tactile card in the center showing driver details (Avatar fallback initials in brandPrimary circle, name, tricycle number). Sticky CTA 'Call Driver' at the bottom."
+    },
+    {
+      "name": "Driver Dashboard",
+      "purpose": "Dedicated interface for drivers to accept rides and update status.",
+      "states": {
+        "loading": "Fetching requests...",
+        "empty": "Illustration of a parked tricycle with 'You're online! Waiting for requests in Tagkawayan.'",
+        "error": "Connection error."
+      },
+      "layout": "Use surfaceInverse for the header area to clearly distinguish Driver Mode from Customer Mode. A massive, tactile 'Go Online / Offline' toggle. The main feed is a list of incoming request cards (pickup, dropoff, fare) with large, friendly 'Accept' (brandPrimary) and 'Decline' (surfaceTertiary) buttons."
+    }
+  ],
+  "images": {
+    "hero_tricycle": {
+      "url": "https://images.unsplash.com/photo-1577884551857-f7b320795bfc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwyfHxwaGlsaXBwaW5lcyUyMHRyaWN5Y2xlfGVufDB8fHx8MTc4NjkwODI3NXww&ixlib=rb-4.1.0&q=85",
+      "alt": "A parked local Philippine tricycle"
+    },
+    "hero_market": {
+      "url": "https://images.unsplash.com/photo-1506484381205-f7945653044d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwzfHxmcmVzaCUyMHByb2R1Y2UlMjBsb2NhbCUyMG1hcmtldHxlbnwwfHx8fDE3ODY5MDgyNzV8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Fresh organic produce at a local market"
+    },
+    "empty_basket": {
+      "url": "https://images.pexels.com/photos/32872494/pexels-photo-32872494.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Empty shopping baskets stacked neatly"
+    }
+  },
+  "haptics": {
+    "primary_button_press": "impactLight",
+    "tab_change": "selection",
+    "toggle_driver_status": "impactMedium",
+    "pull_to_refresh": "impactLight",
+    "success_notification": "notificationSuccess"
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: Zero tolerance for font weights above 500. Use typography sizing (xl, 2xl) to convey hierarchy, not bold/black font weights.",
+    "CRITICAL: Absolutely NO blue/indigo/purple colors in this app. Use the defined 'info' token (slate grey) for any informational banners.",
+    "Ensure all primary actions (e.g., 'Find a Driver', 'Request Pabili') are anchored as Sticky CTAs at the bottom of the screen, outside scrolling regions, with proper safe-area padding.",
+    "When placing text over the 'hero_tricycle' or 'hero_market' images, a gradient scrim (top-to-bottom, transparent to >=70% surfaceInverse) is MANDATORY to guarantee legibility.",
+    "The app targets non-technical users. Rely heavily on large touch targets (minimum 56pt) and tactile (shadow tier 2) chunky cards. Avoid subtle hidden gestures or swipe-to-delete patterns.",
+    "Driver Mode should instantly look different from Customer Mode. Use the surfaceInverse token aggressively in the driver header so they know they are in 'work' mode.",
+    "Web Search learnings applied: Avoid dense 'super app' 12-icon walls (like full Gojek). Tagkawayan only needs two massive entry points for Ride and Pabili to maintain simplicity and approachability."
+  ]
+}
