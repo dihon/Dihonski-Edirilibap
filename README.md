@@ -237,6 +237,56 @@ Point `EXPO_PUBLIC_BACKEND_URL` (in `frontend/.env`) at your deployed backend UR
 
 ---
 
+## 🗑️ Account Deletion API
+
+Lets a user delete their account (required by the App Store & Google Play), identified by **email or phone number**.
+
+**Endpoint**
+```
+POST /api/account/delete
+Authorization: Bearer <token>     # the logged-in user's JWT
+Content-Type: application/json
+```
+
+**Request body** (provide at least one)
+```json
+{ "email": "user@example.com" }
+// or
+{ "phone": "+639170000000" }
+```
+
+**Rules**
+- A regular user can delete **only their own** account (the email/phone must match the logged-in user).
+- An **admin** can delete **any** account by email or phone.
+- The **last remaining admin** account cannot be deleted (prevents lockout).
+- Deleting an account also removes that user's **ratings** and **complaints**; ride/order history is retained.
+
+**Responses**
+| Code | Meaning |
+|---|---|
+| `200` | `{ "ok": true, "deleted_id": "<user id>" }` |
+| `403` | A non-admin tried to delete another user's account |
+| `404` | No account found for the given email/phone |
+| `400` | Attempt to delete the last admin account |
+| `422` | Neither email nor phone was provided |
+
+**Examples**
+```bash
+# Self-service (delete your own account by phone)
+curl -X POST "$API/account/delete" \
+  -H "Authorization: Bearer $USER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+639170000000"}'
+
+# Admin deletes a user by email
+curl -X POST "$API/account/delete" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+```
+
+---
+
 ## 📄 License
 
 Private project for Tagkawayan, Quezon. All rights reserved.

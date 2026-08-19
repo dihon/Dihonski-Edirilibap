@@ -218,6 +218,10 @@ class ComplaintBody(BaseModel):
 
 COMPLAINT_CATEGORIES = ['rude', 'scammer', 'unprofessional', 'abusive', 'drunk', 'need_police_action']
 
+class DeleteAccountBody(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
 # ----------------------------- Fare -----------------------------
 
 BASE_FARE = 25.0
@@ -287,6 +291,33 @@ async def login(body: LoginBody):
 @api_router.get('/auth/me')
 async def me(user: dict = Depends(get_current_user)):
     return public_user(user)
+
+@api_router.post('/account/delete')
+async def delete_account(body: DeleteAccountBody, user: dict = Depends(get_current_user)):
+    """Delete a user account identified by email or phone number.
+    - A regular user may only delete their OWN account.
+    - An admin may delete any account.
+    Also removes the account's ratings and complaints. Ride/order history is kept.
+    """
+    ors = []
+    if body.email:
+        ors.append({'email': body.email.strip().lower()})
+    if body.phone:
+        ors.append({'phone': body.phone.strip()})
+    if not ors:
+        raise HTTPException(422, 'Provide an email or phone number')
+    target = await db.users.find_one({'$or': ors}, {'_id': 0})
+    if not target:
+        raise HTTPException(404, 'No account found for the given email or phone')
+    if user.get('role') != 'admin' and target['id'] != user['id']:
+        raise HTTPException(403, 'You can only delete your own account')
+    # Do not allow deleting the last remaining admin (avoids lockout)
+    if target.get('role') == 'admin' and await db.users.count_documents({'role': 'admin'}) <= 1:
+        raise HTTPException(400, 'Cannot delete the last admin account')
+    await db.users.delete_one({'id': target['id']})
+    await db.ratings.delete_many({'customer_id': target['id']})
+    await db.complaints.delete_many({'customer_id': target['id']})
+    return {'ok': True, 'deleted_id': target['id']}
 
 # ----------------------------- Catalog routes -----------------------------
 
