@@ -93,6 +93,9 @@ export const api = {
   // account
   deleteAccount: (b: { email?: string; phone?: string }) =>
     request('/account/delete', { method: 'POST', body: b }),
+  requestDeletion: (b: { email?: string; phone?: string }) =>
+    request('/account/deletion-request', { method: 'POST', body: b, auth: false }),
+  adminDeleteUser: (id: string) => request(`/admin/users/${id}/delete`, { method: 'POST' }),
   // admin
   adminStats: () => request('/admin/stats'),
   adminUsers: () => request('/admin/users'),

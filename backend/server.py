@@ -222,6 +222,10 @@ class DeleteAccountBody(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
 
+class DeletionRequestBody(BaseModel):
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
 # ----------------------------- Fare -----------------------------
 
 BASE_FARE = 25.0
@@ -254,6 +258,7 @@ async def signup(body: SignupBody):
         'banned': False,
         'rating_avg': 0,
         'rating_count': 0,
+        'pending_deletion': False,
         'created_at': now_iso(),
     }
     if body.email:
@@ -291,6 +296,25 @@ async def login(body: LoginBody):
 @api_router.get('/auth/me')
 async def me(user: dict = Depends(get_current_user)):
     return public_user(user)
+
+@api_router.post('/account/deletion-request')
+async def deletion_request(body: DeletionRequestBody):
+    """PUBLIC endpoint (no auth). A user requests account deletion by email or phone.
+    Marks the matching account as pending deletion so an admin can review & delete it.
+    Returns a generic success regardless of whether an account matched (privacy).
+    """
+    ors = []
+    if body.email:
+        ors.append({'email': body.email.strip().lower()})
+    if body.phone:
+        ors.append({'phone': body.phone.strip()})
+    if not ors:
+        raise HTTPException(422, 'Provide an email or phone number')
+    await db.users.update_one(
+        {'$or': ors},
+        {'$set': {'pending_deletion': True, 'deletion_requested_at': now_iso()}},
+    )
+    return {'ok': True, 'message': 'If an account matches, it has been marked for deletion.'}
 
 @api_router.post('/account/delete')
 async def delete_account(body: DeleteAccountBody, user: dict = Depends(get_current_user)):
@@ -791,6 +815,18 @@ async def ban_user(uid: str, body: BanBody, user: dict = Depends(require_role('a
     res = await db.users.update_one({'id': uid}, {'$set': upd})
     if res.matched_count == 0:
         raise HTTPException(404, 'User not found')
+    return {'ok': True}
+
+@api_router.post('/admin/users/{uid}/delete')
+async def admin_delete_user(uid: str, user: dict = Depends(require_role('admin'))):
+    target = await db.users.find_one({'id': uid}, {'_id': 0})
+    if not target:
+        raise HTTPException(404, 'User not found')
+    if target.get('role') == 'admin' and await db.users.count_documents({'role': 'admin'}) <= 1:
+        raise HTTPException(400, 'Cannot delete the last admin account')
+    await db.users.delete_one({'id': uid})
+    await db.ratings.delete_many({'customer_id': uid})
+    await db.complaints.delete_many({'customer_id': uid})
     return {'ok': True}
 
 @api_router.get('/admin/complaints')
