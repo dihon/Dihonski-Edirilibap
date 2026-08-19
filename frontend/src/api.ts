@@ -90,6 +90,9 @@ export const api = {
   driverRequests: () => request('/driver/requests'),
   driverActive: () => request('/driver/active'),
   driverHistory: () => request('/driver/history'),
+  // account
+  deleteAccount: (b: { email?: string; phone?: string }) =>
+    request('/account/delete', { method: 'POST', body: b }),
   // admin
   adminStats: () => request('/admin/stats'),
   adminUsers: () => request('/admin/users'),

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS } from '@/src/theme';
-import { Button, Card } from '@/src/components/ui';
+import { Button, Card, useToast } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
 import { useAuth } from '@/src/auth';
 import { api } from '@/src/api';
@@ -18,8 +18,11 @@ const ROLE_LABEL: Record<string, string> = {
 export function ProfileScreen({ dark }: { dark?: boolean }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const toast = useToast();
   const { user, logout } = useAuth();
   const [appStatus, setAppStatus] = useState<string>('none');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -40,6 +43,20 @@ export function ProfileScreen({ dark }: { dark?: boolean }) {
   const doLogout = async () => {
     await logout();
     router.replace('/(auth)/login');
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.deleteAccount(user.email ? { email: user.email } : { phone: user.phone });
+      setShowDelete(false);
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (e: any) {
+      toast(e.message || 'Could not delete account', 'error');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -105,8 +122,50 @@ export function ProfileScreen({ dark }: { dark?: boolean }) {
         <View style={{ height: SPACING.lg }} />
         <Button testID="logout-button" title="Log Out" variant="outline" icon="log-out-outline" onPress={doLogout} />
 
+        {user.role === 'customer' ? (
+          <Pressable
+            testID="delete-account-button"
+            onPress={() => setShowDelete(true)}
+            style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+            <Text style={styles.deleteText}>Delete Account</Text>
+          </Pressable>
+        ) : null}
+
         <Text style={styles.footer}>Tagkawayan Ride & Pabili · v1.0</Text>
       </ScrollView>
+
+      <Modal visible={showDelete} transparent animationType="fade" onRequestClose={() => setShowDelete(false)}>
+        <View style={styles.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => !deleting && setShowDelete(false)} />
+          <View style={styles.dialog}>
+            <View style={styles.dialogIcon}>
+              <Ionicons name="warning-outline" size={28} color={COLORS.error} />
+            </View>
+            <Text style={styles.dialogTitle}>Delete your account?</Text>
+            <Text style={styles.dialogBody}>
+              Are you sure you want to delete your account? This action is permanent and cannot be undone. Your account and
+              associated data may be permanently removed.
+            </Text>
+            <Button
+              testID="confirm-delete-account"
+              title="Delete"
+              variant="danger"
+              onPress={confirmDelete}
+              loading={deleting}
+            />
+            <View style={{ height: SPACING.sm }} />
+            <Button
+              testID="cancel-delete-account"
+              title="Cancel"
+              variant="outline"
+              onPress={() => setShowDelete(false)}
+              disabled={deleting}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -165,4 +224,33 @@ const styles = StyleSheet.create({
   ctaTitle: { fontSize: FONT.base, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   ctaSub: { fontSize: FONT.sm, color: COLORS.muted, marginTop: 2 },
   footer: { textAlign: 'center', color: COLORS.muted, marginTop: SPACING.xl, fontSize: FONT.sm },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  deleteText: { color: COLORS.error, fontSize: FONT.base, fontWeight: WEIGHT.medium },
+  backdrop: { flex: 1, backgroundColor: 'rgba(30,32,27,0.55)', alignItems: 'center', justifyContent: 'center', padding: SPACING.xl },
+  dialog: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.xl,
+    alignItems: 'center',
+  },
+  dialogIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: COLORS.error + '22',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
+  dialogTitle: { fontSize: FONT.xl, color: COLORS.onSurface, fontWeight: WEIGHT.medium, textAlign: 'center' },
+  dialogBody: { fontSize: FONT.base, color: COLORS.muted, textAlign: 'center', marginTop: SPACING.sm, marginBottom: SPACING.xl, lineHeight: 21 },
 });
