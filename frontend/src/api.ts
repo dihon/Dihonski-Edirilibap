@@ -99,6 +99,13 @@ export const api = {
   // admin
   adminStats: () => request('/admin/stats'),
   adminUsers: () => request('/admin/users'),
+  adminList: (params: Record<string, string | number>) => {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== '')
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return request(`/admin/list?${qs}`);
+  },
   adminOrders: () => request('/admin/orders'),
   setRole: (id: string, role: string, tricycle_no?: string) =>
     request(`/admin/users/${id}/role`, { method: 'POST', body: { role, tricycle_no } }),

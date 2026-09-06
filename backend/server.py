@@ -587,6 +587,59 @@ async def admin_users(user: dict = Depends(require_role('admin'))):
     users = await db.users.find({}, {'_id': 0, 'password': 0}).sort('created_at', -1).to_list(500)
     return users
 
+@api_router.get('/admin/list')
+async def admin_list(
+    type: str,
+    q: Optional[str] = Query(None),
+    sort: str = 'time',
+    order: str = 'desc',
+    page: int = 1,
+    page_size: int = 10,
+    user: dict = Depends(require_role('admin')),
+):
+    page = max(1, page)
+    page_size = min(50, max(1, page_size))
+    skip = (page - 1) * page_size
+    direction = -1 if order == 'desc' else 1
+    q = (q or '').strip()
+    done = ['completed', 'cancelled']
+
+    if type in ('total_rides', 'active_rides', 'total_orders', 'active_orders'):
+        is_ride = 'rides' in type
+        coll = db.rides if is_ride else db.orders
+        query: dict = {}
+        if 'active' in type:
+            query['status'] = {'$nin': done}
+        if q:
+            rx = {'$regex': q, '$options': 'i'}
+            if is_ride:
+                query['$or'] = [{'customer_name': rx}, {'driver_name': rx}, {'pickup': rx}, {'dropoff': rx}]
+            else:
+                query['$or'] = [{'customer_name': rx}, {'driver_name': rx}, {'delivery_address': rx}, {'store_name': rx}]
+        sort_field = 'created_at' if sort == 'time' else 'customer_name'
+        total = await coll.count_documents(query)
+        items = await coll.find(query, {'_id': 0}).sort(sort_field, direction).skip(skip).limit(page_size).to_list(page_size)
+    elif type in ('customers', 'drivers'):
+        role = 'customer' if type == 'customers' else 'driver'
+        query = {'role': role}
+        if q:
+            rx = {'$regex': q, '$options': 'i'}
+            query['$or'] = [{'name': rx}, {'phone': rx}, {'email': rx}, {'tricycle_no': rx}]
+        sort_field = 'created_at' if sort == 'time' else 'name'
+        total = await db.users.count_documents(query)
+        items = await db.users.find(query, {'_id': 0, 'password': 0}).sort(sort_field, direction).skip(skip).limit(page_size).to_list(page_size)
+    else:
+        raise HTTPException(422, 'Invalid list type')
+
+    return {
+        'items': items,
+        'total': total,
+        'page': page,
+        'page_size': page_size,
+        'pages': max(1, (total + page_size - 1) // page_size),
+        'kind': 'ride' if 'rides' in type else 'order' if 'orders' in type else 'user',
+    }
+
 @api_router.post('/admin/users/{user_id}/role')
 async def set_role(user_id: str, body: RoleBody, user: dict = Depends(require_role('admin'))):
     if body.role not in ('customer', 'driver', 'admin'):

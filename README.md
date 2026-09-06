@@ -32,6 +32,10 @@ A local **tricycle-hailing + market-delivery (pabili)** platform built specifica
 │   ├── app.json            # Expo config (name, icon, splash, plugins)
 │   ├── package.json
 │   └── .env                # Frontend environment variables (not committed)
+├── schema/                 # MariaDB/MySQL target schema (schema.sql) — kept in sync
+├── data/                   # JSON snapshot of all app data (per collection)
+├── scripts/
+│   └── export_data.py      # Regenerates the data/ snapshot from the database
 └── README.md
 ```
 

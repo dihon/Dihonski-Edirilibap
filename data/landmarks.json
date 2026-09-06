@@ -1,0 +1,102 @@
+[
+  {
+    "id": "dc2eca45-20de-4549-a933-d39cedf80e84",
+    "name": "Poblacion (Town Center)",
+    "zone": 1
+  },
+  {
+    "id": "7f37ef92-b01c-4667-88aa-6607bcd87f99",
+    "name": "Tagkawayan Public Market",
+    "zone": 1
+  },
+  {
+    "id": "5b7294f4-caa2-4d33-bd3d-95a36b78680b",
+    "name": "Tagkawayan Port",
+    "zone": 2
+  },
+  {
+    "id": "37a9af66-e3e3-4ff7-8703-77f1d105a0f9",
+    "name": "Tagkawayan Bus Terminal",
+    "zone": 2
+  },
+  {
+    "id": "8da3c6b1-710e-4aba-8121-b32efc007ca2",
+    "name": "Bagong Silang",
+    "zone": 2
+  },
+  {
+    "id": "0ef3d89d-6b81-41b3-bffa-93817df1bf9f",
+    "name": "Aliji",
+    "zone": 3
+  },
+  {
+    "id": "e803d409-cbbc-4559-857f-841f5be18b54",
+    "name": "Cabibihan",
+    "zone": 3
+  },
+  {
+    "id": "b8c657a1-8ae9-4de1-90d3-fd90b53820c8",
+    "name": "Kinamaligan",
+    "zone": 3
+  },
+  {
+    "id": "1a886fe5-07a4-4fd8-b1b8-7c0ead16139a",
+    "name": "Camflora",
+    "zone": 4
+  },
+  {
+    "id": "7ed27db3-408d-427a-9991-5bf4faab53c9",
+    "name": "Vega",
+    "zone": 3
+  },
+  {
+    "id": "b12a7290-67a4-4395-b805-bc29dacb7deb",
+    "name": "Bukal",
+    "zone": 4
+  },
+  {
+    "id": "cbdb64c3-01d1-437a-9f19-bc81fe56b6f6",
+    "name": "Katimo",
+    "zone": 4
+  },
+  {
+    "id": "70bff740-435f-4e3f-a0ef-ecccbf9020b9",
+    "name": "Lubi",
+    "zone": 5
+  },
+  {
+    "id": "03721031-1283-491c-a48c-e63ea4220b1d",
+    "name": "Payte",
+    "zone": 4
+  },
+  {
+    "id": "35555d26-5e06-4aa7-90bc-853a3491f792",
+    "name": "San Vicente",
+    "zone": 3
+  },
+  {
+    "id": "a127d91f-0c1e-4472-af4a-a64a9dfda33d",
+    "name": "Sto. Niño",
+    "zone": 2
+  },
+  {
+    "id": "19a9b1e7-8e43-46d2-a293-2ee3d7f8ec13",
+    "name": "Gapas",
+    "zone": 4
+  },
+  {
+    "id": "b2d1ce8c-bfba-4ee8-bcd9-ea6e1987881b",
+    "name": "Manato",
+    "zone": 5
+  },
+  {
+    "id": "b40a38e2-4d18-480a-b020-ad8848a36607",
+    "name": "Rizal",
+    "zone": 2
+  },
+  {
+    "id": "3926ec50-d31e-4dec-af55-03fd7f8f66f5",
+    "name": "Mahinta",
+    "zone": 4
+  }
+]

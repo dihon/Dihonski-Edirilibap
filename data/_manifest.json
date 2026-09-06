@@ -1,0 +1,11 @@
+{
+  "collections": {
+    "users": 27,
+    "landmarks": 20,
+    "stores": 4,
+    "rides": 12,
+    "orders": 4,
+    "ratings": 2,
+    "complaints": 2
+  }
+}

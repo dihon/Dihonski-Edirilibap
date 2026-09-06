@@ -37,12 +37,12 @@ export default function AdminOverview() {
   if (!stats) return <Loading />;
 
   const cards = [
-    { label: 'Total Rides', value: stats.rides, icon: 'bicycle', color: COLORS.brandPrimary },
-    { label: 'Total Orders', value: stats.orders, icon: 'basket', color: COLORS.brandSecondary },
-    { label: 'Active Rides', value: stats.active_rides, icon: 'navigate', color: COLORS.info },
-    { label: 'Active Orders', value: stats.active_orders, icon: 'time', color: COLORS.warning },
-    { label: 'Customers', value: stats.customers, icon: 'people', color: COLORS.brandPrimary },
-    { label: 'Drivers', value: stats.drivers, icon: 'car', color: COLORS.brandSecondary },
+    { label: 'Total Rides', value: stats.rides, icon: 'bicycle', color: COLORS.brandPrimary, type: 'total_rides' },
+    { label: 'Total Orders', value: stats.orders, icon: 'basket', color: COLORS.brandSecondary, type: 'total_orders' },
+    { label: 'Active Rides', value: stats.active_rides, icon: 'navigate', color: COLORS.info, type: 'active_rides' },
+    { label: 'Active Orders', value: stats.active_orders, icon: 'time', color: COLORS.warning, type: 'active_orders' },
+    { label: 'Customers', value: stats.customers, icon: 'people', color: COLORS.brandPrimary, type: 'customers' },
+    { label: 'Drivers', value: stats.drivers, icon: 'car', color: COLORS.brandSecondary, type: 'drivers' },
   ];
 
   return (
@@ -90,13 +90,19 @@ export default function AdminOverview() {
         <Text style={styles.sectionTitle}>At a glance</Text>
         <View style={styles.grid}>
           {cards.map((c) => (
-            <View key={c.label} style={styles.statCard} testID={`stat-${c.label}`}>
+            <Pressable
+              key={c.label}
+              testID={`stat-${c.label}`}
+              onPress={() => router.push(`/admin/list?type=${c.type}&title=${encodeURIComponent(c.label)}` as any)}
+              style={({ pressed }) => [styles.statCard, pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] }]}
+            >
               <View style={[styles.statIcon, { backgroundColor: c.color + '22' }]}>
                 <Ionicons name={c.icon as any} size={22} color={c.color} />
               </View>
               <Text style={styles.statValue}>{c.value}</Text>
               <Text style={styles.statLabel}>{c.label}</Text>
-            </View>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.muted} style={styles.statChevron} />
+            </Pressable>
           ))}
         </View>
       </ScrollView>
@@ -145,4 +151,5 @@ const styles = StyleSheet.create({
   statIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.md },
   statValue: { fontSize: 30, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   statLabel: { fontSize: FONT.base, color: COLORS.muted, marginTop: 2 },
+  statChevron: { position: 'absolute', top: SPACING.lg, right: SPACING.md },
 });

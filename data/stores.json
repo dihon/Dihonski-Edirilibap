@@ -1,0 +1,208 @@
+[
+  {
+    "id": "e9a21e00-972e-4679-ae59-19de3a217bdd",
+    "name": "Tagkawayan Public Market",
+    "category": "Wet Market",
+    "image": "https://images.unsplash.com/photo-1506484381205-f7945653044d?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+    "items": [
+      {
+        "id": "ad0e2769-773c-4c5b-8198-a8f278d45e7f",
+        "name": "Rice (per kilo)",
+        "price": 52,
+        "unit": "kg"
+      },
+      {
+        "id": "3d14aa5f-3c28-446e-a790-b4e79655822b",
+        "name": "Pork (per kilo)",
+        "price": 320,
+        "unit": "kg"
+      },
+      {
+        "id": "bbd4a7bd-5e4d-4e5d-9279-565faacba770",
+        "name": "Chicken (per kilo)",
+        "price": 200,
+        "unit": "kg"
+      },
+      {
+        "id": "e76ed5ca-ea3b-4609-832b-490961002e18",
+        "name": "Bangus / Milkfish",
+        "price": 180,
+        "unit": "kg"
+      },
+      {
+        "id": "62027fba-193e-40a3-92ef-b0cf6d67894f",
+        "name": "Tomatoes",
+        "price": 60,
+        "unit": "kg"
+      },
+      {
+        "id": "9f7be8e0-34de-49ba-8dea-9a184f8454b7",
+        "name": "Onions",
+        "price": 90,
+        "unit": "kg"
+      },
+      {
+        "id": "3f87d0d8-27e3-4761-8c4c-9e9e8fa3f47c",
+        "name": "Garlic",
+        "price": 120,
+        "unit": "kg"
+      },
+      {
+        "id": "db0d38af-bf0a-492b-bce4-268c5c6f6f67",
+        "name": "Eggs (per tray)",
+        "price": 215,
+        "unit": "tray"
+      },
+      {
+        "id": "9cc7bdbc-1e20-4211-8f11-1197f47dd7fa",
+        "name": "Kalabasa / Squash",
+        "price": 40,
+        "unit": "kg"
+      },
+      {
+        "id": "37047c3d-35f7-465c-b9c6-de41a024b440",
+        "name": "Bananas (Saba)",
+        "price": 55,
+        "unit": "kg"
+      }
+    ]
+  },
+  {
+    "id": "5fe076ff-d63a-442f-800c-ab842882720b",
+    "name": "Aling Nena Sari-Sari Store",
+    "category": "Sari-sari",
+    "image": "https://images.unsplash.com/photo-1578916171728-46686eac8d58?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+    "items": [
+      {
+        "id": "c0e468b5-bb38-4d75-be9d-9c447b1abdb7",
+        "name": "Instant Noodles",
+        "price": 12,
+        "unit": "pack"
+      },
+      {
+        "id": "d5b9165b-8b4e-46f9-a9a3-328bfb12fa14",
+        "name": "Coffee 3-in-1",
+        "price": 8,
+        "unit": "sachet"
+      },
+      {
+        "id": "bb59ed01-ac3d-4a5b-abca-a55c6a563e13",
+        "name": "Sugar (per kilo)",
+        "price": 75,
+        "unit": "kg"
+      },
+      {
+        "id": "5752dd89-2f76-4b0d-b07d-f881e7a89568",
+        "name": "Cooking Oil (bottle)",
+        "price": 85,
+        "unit": "btl"
+      },
+      {
+        "id": "4d7146d5-3d88-4ee7-a71b-82845b952b10",
+        "name": "Soy Sauce",
+        "price": 28,
+        "unit": "btl"
+      },
+      {
+        "id": "28b7ca1e-1be1-4926-8e72-59bbb4f07ec2",
+        "name": "Canned Sardines",
+        "price": 25,
+        "unit": "can"
+      },
+      {
+        "id": "4a703651-03ba-4af7-a89d-32f8ddc04cf1",
+        "name": "Softdrinks 1.5L",
+        "price": 75,
+        "unit": "btl"
+      },
+      {
+        "id": "df964751-4180-435f-9ba2-d83057ea4e30",
+        "name": "Bread (Tasty)",
+        "price": 65,
+        "unit": "loaf"
+      }
+    ]
+  },
+  {
+    "id": "bf8ca1c6-fbd6-40c8-8ef7-f3190c6f3d3b",
+    "name": "Botika ng Bayan",
+    "category": "Pharmacy",
+    "image": "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+    "items": [
+      {
+        "id": "9a02c9bd-fad2-4100-a394-8d679133077a",
+        "name": "Paracetamol (Biogesic)",
+        "price": 5,
+        "unit": "tab"
+      },
+      {
+        "id": "1d957768-15a3-41b7-96c3-70f6c6b86d56",
+        "name": "Mefenamic Acid",
+        "price": 8,
+        "unit": "tab"
+      },
+      {
+        "id": "f263f0e2-1921-4a52-96db-9cedbd1da370",
+        "name": "Vitamin C",
+        "price": 10,
+        "unit": "tab"
+      },
+      {
+        "id": "98738051-8e7a-4855-be1a-5469d031022e",
+        "name": "Alcohol 500ml",
+        "price": 95,
+        "unit": "btl"
+      },
+      {
+        "id": "ea3643cf-ac30-4fe2-b9a3-2d9106a082ac",
+        "name": "Band-Aid (box)",
+        "price": 45,
+        "unit": "box"
+      },
+      {
+        "id": "d715e475-9e20-42df-99d4-7b209f8c8fc1",
+        "name": "Cotton (roll)",
+        "price": 35,
+        "unit": "roll"
+      }
+    ]
+  },
+  {
+    "id": "f02c85b3-28f4-41c5-ab80-c951eb2e46ac",
+    "name": "Tagkawayan Bakery",
+    "category": "Bakery",
+    "image": "https://images.unsplash.com/photo-1509440159596-0249088772ff?crop=entropy&cs=srgb&fm=jpg&q=85&w=800",
+    "items": [
+      {
+        "id": "9b91cada-69b9-4d17-86a1-849bf3aacfb9",
+        "name": "Pandesal (per piece)",
+        "price": 3,
+        "unit": "pc"
+      },
+      {
+        "id": "1db72355-bc88-4849-816c-62f6bad95fb6",
+        "name": "Ensaymada",
+        "price": 15,
+        "unit": "pc"
+      },
+      {
+        "id": "7fdd282d-5df2-4b12-a90f-69550721321e",
+        "name": "Spanish Bread",
+        "price": 12,
+        "unit": "pc"
+      },
+      {
+        "id": "791c5e43-36aa-48a0-9ea5-54dc85b7c63c",
+        "name": "Loaf Bread",
+        "price": 60,
+        "unit": "loaf"
+      },
+      {
+        "id": "1c185e7e-2308-46d7-892d-a58dbc1f26a8",
+        "name": "Cheese Bread",
+        "price": 10,
+        "unit": "pc"
+      }
+    ]
+  }
+]
