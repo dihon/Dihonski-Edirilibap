@@ -165,3 +165,43 @@
 ## agent_communication:
 ##     -agent: "main"
 ##     -message: "Round 3 features implemented and backend verified via curl. Please test both backend endpoints and frontend flows. Admin: admin@tagkawayan.ph / admin12345. Focus: (1) Admin Pricing tab edits save & reflect in new orders/rides. (2) Pabili custom & preset show live delivery fee from weight/item and it matches backend. (3) Tracking screen shows Est. arrival ~X min on active jobs and fee breakdown on pabili. (4) Users/Orders search filters instantly."
+
+## ROUND 4 — MariaDB migration + Trusted Badge + Payout Report
+## backend:
+##   - task: "MariaDB migration (Motor->MariaDB via Mongo-compat JSON layer db_mysql.py)"
+##     implemented: true
+##     working: true
+##     file: "backend/db_mysql.py, backend/server.py, backend/.env"
+##     status_history:
+##         -working: true
+##         -agent: "main"
+##         -comment: "Switched db to MariaDB (dihonski.com/tk_app) via compat layer storing docs as JSON. Migrated all Mongo data (users 34, rides 16, orders 11, stores 4, landmarks 20, ratings 2, complaints 2, config 1) with migrate_mongo_to_mysql.py; fixed a seed/reload dup by truncate+re-migrate. Verified auth (email + phone/name), stats, ride/order create+accept, ratings avg recompute, admin search all working on MariaDB."
+##   - task: "Payout report GET /api/admin/payouts?date_from&date_to (grouped by driver)"
+##     implemented: true
+##     working: true
+##     file: "backend/server.py"
+##     status_history:
+##         -working: true
+##         -agent: "main"
+##         -comment: "All-time totals verified (3 drivers, 8 rides, 3 pabili, total 556). Date range filter returns empty for out-of-range."
+##   - task: "Trusted thresholds in config (trusted_min_ratings, trusted_min_avg)"
+##     implemented: true
+##     working: true
+##     file: "backend/server.py"
+## frontend:
+##   - task: "Trusted badge (tracking driver card, driver earnings, admin drill-down list)"
+##     implemented: true
+##     working: "NA"
+##     file: "frontend/src/components/TrustedBadge.tsx, track/[kind]/[id].tsx, (driver)/earnings.tsx, admin/list.tsx"
+##   - task: "Admin config: Trusted Driver Badge thresholds section"
+##     implemented: true
+##     working: "NA"
+##     file: "frontend/app/(admin)/config.tsx"
+##   - task: "Driver Payouts screen + CSV export + overview entry card"
+##     implemented: true
+##     working: "NA"
+##     file: "frontend/app/admin/payouts.tsx, (admin)/index.tsx"
+
+## agent_communication:
+##     -agent: "main"
+##     -message: "ROUND 4: (1) Migrated live DB from MongoDB to the user's MariaDB (dihonski.com/tk_app) using a Motor-compatible JSON-document layer — please regression-test ALL core flows since the DB backend changed. (2) Trusted Driver Badge shown when rating meets admin thresholds. (3) Driver Payout report with date presets + CSV export (mobile only). Admin admin@tagkawayan.ph/admin12345. Focus regression: signup/login (email + phone/name), ride & pabili full lifecycle incl. driver accept & status, ratings updating driver avg, admin dashboards/search/pricing, payouts endpoint, trusted badge visibility."

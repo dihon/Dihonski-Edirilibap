@@ -3,7 +3,7 @@ from fastapi.responses import Response
 from fastapi.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from db_mysql import db, init_tables, close_pool
 import os
 import logging
 import uuid
@@ -18,10 +18,6 @@ from datetime import datetime, timezone, timedelta
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_EXP_HOURS = int(os.environ.get('JWT_EXP_HOURS', '720'))
@@ -238,6 +234,8 @@ DEFAULT_CONFIG = {
     'pabili_per_item': 3.0,   # added per item requested
     'eta_base_min': 4,        # baseline minutes for any trip
     'eta_per_zone_min': 7,    # minutes added per zone of distance
+    'trusted_min_ratings': 3, # min number of ratings to qualify as Trusted
+    'trusted_min_avg': 4.5,   # min average stars to qualify as Trusted
 }
 
 async def get_config() -> dict:
@@ -293,6 +291,8 @@ class ConfigBody(BaseModel):
     pabili_per_item: Optional[float] = None
     eta_base_min: Optional[int] = None
     eta_per_zone_min: Optional[int] = None
+    trusted_min_ratings: Optional[int] = None
+    trusted_min_avg: Optional[float] = None
 
 # ----------------------------- Auth routes -----------------------------
 
@@ -743,6 +743,65 @@ async def admin_orders(user: dict = Depends(require_role('admin'))):
     orders = await db.orders.find({}, {'_id': 0}).sort('created_at', -1).to_list(300)
     return {'rides': rides, 'orders': orders}
 
+@api_router.get('/admin/payouts')
+async def admin_payouts(
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    user: dict = Depends(require_role('admin')),
+):
+    """Driver earnings report for completed rides & pabili within an optional date range.
+    date_from / date_to are YYYY-MM-DD (inclusive). Grouped by driver."""
+    def in_range(iso: Optional[str]) -> bool:
+        if not iso:
+            return False
+        day = iso[:10]
+        if date_from and day < date_from:
+            return False
+        if date_to and day > date_to:
+            return False
+        return True
+
+    rides = await db.rides.find({'status': 'completed'}, {'_id': 0}).to_list(5000)
+    orders = await db.orders.find({'status': 'completed'}, {'_id': 0}).to_list(5000)
+    rows: dict = {}
+
+    def row_for(did, dname, trike):
+        if did not in rows:
+            rows[did] = {
+                'driver_id': did, 'driver_name': dname or 'Unknown',
+                'tricycle_no': trike, 'rides': 0, 'orders': 0,
+                'ride_earnings': 0.0, 'pabili_earnings': 0.0, 'total': 0.0,
+            }
+        return rows[did]
+
+    for r in rides:
+        if not r.get('driver_id') or not in_range(r.get('updated_at')):
+            continue
+        row = row_for(r['driver_id'], r.get('driver_name'), r.get('driver_tricycle'))
+        amt = float(r.get('fare', 0))
+        row['rides'] += 1
+        row['ride_earnings'] = round(row['ride_earnings'] + amt, 2)
+        row['total'] = round(row['total'] + amt, 2)
+    for o in orders:
+        if not o.get('driver_id') or not in_range(o.get('updated_at')):
+            continue
+        row = row_for(o['driver_id'], o.get('driver_name'), o.get('driver_tricycle'))
+        amt = float(o.get('service_fee', 0))
+        row['orders'] += 1
+        row['pabili_earnings'] = round(row['pabili_earnings'] + amt, 2)
+        row['total'] = round(row['total'] + amt, 2)
+
+    report = sorted(rows.values(), key=lambda x: x['total'], reverse=True)
+    totals = {
+        'drivers': len(report),
+        'rides': sum(r['rides'] for r in report),
+        'orders': sum(r['orders'] for r in report),
+        'ride_earnings': round(sum(r['ride_earnings'] for r in report), 2),
+        'pabili_earnings': round(sum(r['pabili_earnings'] for r in report), 2),
+        'total': round(sum(r['total'] for r in report), 2),
+    }
+    return {'from': date_from, 'to': date_to, 'report': report, 'totals': totals}
+
 # ----------------------------- File upload / storage -----------------------------
 
 @api_router.post('/upload')
@@ -857,13 +916,11 @@ async def create_rating(body: RatingBody, user: dict = Depends(get_current_user)
         'stars': stars, 'comment': (body.comment or '').strip(), 'created_at': now_iso(),
     })
     await coll.update_one({'id': body.job_id}, {'$set': {'rated': True, 'rating_stars': stars}})
-    agg = await db.ratings.aggregate([
-        {'$match': {'driver_id': job['driver_id']}},
-        {'$group': {'_id': None, 'avg': {'$avg': '$stars'}, 'cnt': {'$sum': 1}}},
-    ]).to_list(1)
-    if agg:
+    driver_ratings = await db.ratings.find({'driver_id': job['driver_id']}, {'_id': 0}).to_list(5000)
+    if driver_ratings:
+        avg = sum(r.get('stars', 0) for r in driver_ratings) / len(driver_ratings)
         await db.users.update_one({'id': job['driver_id']}, {'$set': {
-            'rating_avg': round(agg[0]['avg'], 2), 'rating_count': agg[0]['cnt'],
+            'rating_avg': round(avg, 2), 'rating_count': len(driver_ratings),
         }})
     return {'ok': True}
 
@@ -1090,6 +1147,7 @@ async def seed():
 
 @app.on_event('startup')
 async def on_startup():
+    await init_tables()
     await seed()
     try:
         await run_in_threadpool(_init_storage)
@@ -1109,4 +1167,4 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    await close_pool()

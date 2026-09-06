@@ -209,8 +209,11 @@ class TestOrderFlow:
         oid = order['id']
         expected_total = round(items[0]['price'] * 2 + items[1]['price'] * 1, 2)
         assert order['items_total'] == expected_total
-        assert order['service_fee'] == 35.0
-        assert order['estimated_total'] == round(expected_total + 35.0, 2)
+        # service_fee is now dynamic: base 35 + per_item(3) * derived item_count (sum of qtys = 3)
+        item_count = sum(i['qty'] for i in items)
+        expected_fee = round(35.0 + 3.0 * item_count, 2)
+        assert order['service_fee'] == expected_fee
+        assert order['estimated_total'] == round(expected_total + expected_fee, 2)
         assert order['status'] == 'requested'
 
         # Driver accept + advance

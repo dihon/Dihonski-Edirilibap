@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from '
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT, WEIGHT, RADIUS, peso, RIDE_STATUS, ORDER_STATUS } from '@/src/theme';
+import { COLORS, SPACING, FONT, WEIGHT, RADIUS, peso, RIDE_STATUS, ORDER_STATUS, isTrusted } from '@/src/theme';
 import { Input, Badge, EmptyState } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
+import { TrustedBadge } from '@/src/components/TrustedBadge';
 import { api } from '@/src/api';
 
 const PAGE_SIZE = 10;
@@ -19,6 +20,11 @@ export default function AdminList() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pricing, setPricing] = useState<any>(null);
+
+  useEffect(() => {
+    api.pricing().then(setPricing).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,7 +100,7 @@ export default function AdminList() {
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: insets.bottom + 100 }}
           renderItem={({ item }) =>
-            kind === 'user' ? <UserRow item={item} /> : <JobRow item={item} kind={kind} />
+            kind === 'user' ? <UserRow item={item} pricing={pricing} /> : <JobRow item={item} kind={kind} />
           }
           ListEmptyComponent={<EmptyState icon="search-outline" title="No results" subtitle="Try a different search or filter." />}
         />
@@ -152,8 +158,9 @@ function JobRow({ item, kind }: { item: any; kind: string }) {
   );
 }
 
-function UserRow({ item }: { item: any }) {
+function UserRow({ item, pricing }: { item: any; pricing: any }) {
   const color = item.role === 'driver' ? COLORS.brandSecondary : item.role === 'admin' ? COLORS.brandPrimary : COLORS.info;
+  const trusted = item.role === 'driver' && isTrusted(item.rating_avg, item.rating_count, pricing);
   return (
     <View style={styles.card} testID={`row-${item.id}`}>
       <View style={styles.cardHead}>
@@ -166,7 +173,10 @@ function UserRow({ item }: { item: any }) {
             <Text style={styles.cardMeta}>{item.phone || item.email || '—'}{item.tricycle_no ? ` · ${item.tricycle_no}` : ''}</Text>
           </View>
         </View>
-        <Badge label={item.role} color={color} />
+        <View style={styles.userTags}>
+          {trusted ? <TrustedBadge compact /> : null}
+          <Badge label={item.role} color={color} />
+        </View>
       </View>
       {item.role === 'driver' && item.rating_count > 0 ? (
         <Text style={styles.cardDate}>
@@ -194,6 +204,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: COLORS.surfaceSecondary, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.sm, borderWidth: 1, borderColor: COLORS.border },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.sm },
   cardHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flex: 1 },
+  userTags: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   cardType: { fontSize: FONT.base, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   cardRoute: { fontSize: FONT.base, color: COLORS.onSurface },
   cardFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: SPACING.sm },

@@ -18,6 +18,8 @@ import {
 } from '@/src/theme';
 import { Button, Card, Input, Loading, useToast } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
+import { TrustedBadge } from '@/src/components/TrustedBadge';
+import { isTrusted } from '@/src/theme';
 import { api } from '@/src/api';
 
 export default function Track() {
@@ -33,7 +35,12 @@ export default function Track() {
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [rateBusy, setRateBusy] = useState(false);
+  const [pricing, setPricing] = useState<any>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    api.pricing().then(setPricing).catch(() => setPricing(null));
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -187,7 +194,12 @@ export default function Track() {
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.driverName}>{data.driver_name}</Text>
+                <View style={styles.driverNameRow}>
+                  <Text style={styles.driverName}>{data.driver_name}</Text>
+                  {isTrusted(data.driver_rating, data.driver_rating_count, pricing) ? (
+                    <TrustedBadge compact />
+                  ) : null}
+                </View>
                 <Text style={styles.driverTrike}>
                   <Ionicons name="bicycle" size={14} color={COLORS.muted} /> {data.driver_tricycle || 'Tricycle'}
                 </Text>
@@ -436,6 +448,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   driverInitials: { color: '#fff', fontSize: FONT.lg, fontWeight: WEIGHT.medium },
+  driverNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
   driverName: { fontSize: FONT.lg, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   driverTrike: { fontSize: FONT.base, color: COLORS.muted, marginTop: 2 },
   driverRating: { fontSize: FONT.sm, color: COLORS.onSurface, marginTop: 4 },

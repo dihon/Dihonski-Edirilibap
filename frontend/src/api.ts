@@ -110,6 +110,13 @@ export const api = {
   adminOrders: () => request('/admin/orders'),
   adminConfig: () => request('/admin/config'),
   updateConfig: (b: Record<string, number>) => request('/admin/config', { method: 'POST', body: b }),
+  adminPayouts: (params: { date_from?: string; date_to?: string }) => {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v)
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    return request(`/admin/payouts${qs ? `?${qs}` : ''}`);
+  },
   setRole: (id: string, role: string, tricycle_no?: string) =>
     request(`/admin/users/${id}/role`, { method: 'POST', body: { role, tricycle_no } }),
   // driver application

@@ -16,7 +16,9 @@ type FieldKey =
   | 'pabili_per_kg'
   | 'pabili_per_item'
   | 'eta_base_min'
-  | 'eta_per_zone_min';
+  | 'eta_per_zone_min'
+  | 'trusted_min_ratings'
+  | 'trusted_min_avg';
 
 const SECTIONS: {
   title: string;
@@ -50,6 +52,15 @@ const SECTIONS: {
     fields: [
       { key: 'eta_base_min', label: 'Base minutes', hint: 'Baseline minutes for any trip', suffix: 'min' },
       { key: 'eta_per_zone_min', label: 'Minutes per zone', hint: 'Added per zone of distance', suffix: 'min' },
+    ],
+  },
+  {
+    title: 'Trusted Driver Badge',
+    icon: 'shield-checkmark',
+    color: COLORS.success,
+    fields: [
+      { key: 'trusted_min_ratings', label: 'Min. ratings', hint: 'Ratings needed to earn the badge', suffix: '' },
+      { key: 'trusted_min_avg', label: 'Min. average stars', hint: 'Average stars needed (e.g. 4.5)', suffix: '' },
     ],
   },
 ];

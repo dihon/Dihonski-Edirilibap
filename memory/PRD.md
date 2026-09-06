@@ -59,6 +59,9 @@ Build a mobile app: local tricycle-hailing + market-delivery platform specifical
 - **Admin search boxes**: instant client-side search added to Users and Orders panels.
 
 ## Backlog (updated)
-- MariaDB migration — user provided credentials (host dihonski.com, db tk_app). TCP 3306 reachable. NOT YET migrated (large effort; MongoDB still live).
-- Trusted Badge for highly-rated drivers.
-- Driver payout report export.
+- MariaDB migration — DONE (2026-06). Live DB moved to user's MariaDB (dihonski.com/tk_app) via a Motor-compatible JSON-document layer (`backend/db_mysql.py`); all data migrated with `backend/migrate_mongo_to_mysql.py`. MongoDB no longer used at runtime.
+- Trusted Badge for highly-rated drivers — DONE. Shown on tracking driver card, driver Earnings, admin drill-down list; thresholds admin-configurable (`trusted_min_ratings`, `trusted_min_avg`).
+- Driver payout report export — DONE. `GET /api/admin/payouts?date_from&date_to`; admin Payouts screen with date presets + CSV export (native via expo-sharing).
+
+## Round 4 note
+- DB backend is now MariaDB. `db_mysql.py` implements the subset of the Mongo/Motor API the app uses (find/insert/update/delete/count/find_one_and_update; operators $or/$in/$nin/$exists/$regex/$set). Full-table scans at MVP scale; add filtered-SQL path if data grows large.

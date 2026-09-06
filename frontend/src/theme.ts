@@ -82,3 +82,14 @@ export const ORDER_FLOW = ['requested', 'accepted', 'shopping', 'delivering', 'c
 
 export const peso = (n: number | null | undefined) =>
   `\u20B1${Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+// A driver is "Trusted" when they meet the admin-configured rating thresholds.
+export const isTrusted = (
+  avg: number | null | undefined,
+  count: number | null | undefined,
+  cfg?: { trusted_min_ratings?: number; trusted_min_avg?: number } | null,
+) => {
+  const minCount = cfg?.trusted_min_ratings ?? 3;
+  const minAvg = cfg?.trusted_min_avg ?? 4.5;
+  return Number(count || 0) >= minCount && Number(avg || 0) >= minAvg;
+};

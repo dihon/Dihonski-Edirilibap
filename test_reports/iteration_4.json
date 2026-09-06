@@ -1,0 +1,48 @@
+{
+  "summary": "Round 4 tested end-to-end after MongoDB→MariaDB migration and 2 new features (Trusted Driver Badge + Admin Driver Payouts). Backend: dedicated Round-4 suite (/app/backend/tests/test_round4_payouts_trusted.py) — 12/12 pass. Full suite serially: 54/55 pass (1 pre-existing failure unrelated to Round 4: TestOrderFlow.test_preset_order_flow expects service_fee=35.0 but backend now returns 44.0 because the preset store's total weight is now factored in via dynamic pabili fee — this is a stale round-1 assertion, not a bug). MariaDB compatibility layer (db_mysql.py) works transparently: signup email+pw, signup phone+name, login both ways, /auth/me, full ride lifecycle w/ fare & eta_minutes, full pabili lifecycle w/ dynamic service_fee & eta_minutes, python-computed rating rollup (rating_count/rating_avg update on /auth/me after POST /ratings) all verified. NEW /api/admin/payouts: admin-only (403 for driver & customer, 401 no-token); shape {from,to,report[],totals{drivers,rides,orders,ride_earnings,pabili_earnings,total}}; report sorted desc by total; date_from=2099 returns empty; today-range totals sum matches row sums. NEW config keys trusted_min_ratings & trusted_min_avg surface on GET /api/config (public) and update via POST /api/admin/config. Frontend: Admin Overview shows the 'Driver Payouts' card → Payouts screen renders presets (All time / Today / Last 7 days / This month), summary card (verified ₱917 total, 3 drivers, 13 rides, 4 pabili, ride fares ₱745, pabili fees ₱172), per-driver rows (Mang Tonyo ₱721 / Dihon Dihon ₱147 / Applicant One ₱49), and 'Today' preset filters correctly to 1 row. 'Export as CSV' on web shows the expected 'CSV export works on the mobile app' toast (native path uses expo-file-system/legacy + expo-sharing — not exercised on web, per instruction). Admin Pricing tab now has a 'Trusted Driver Badge' section with testIDs config-trusted_min_ratings and config-trusted_min_avg; Save persists (toast 'Pricing updated' confirmed). After lowering thresholds to (1, 4), Trusted badge appears on admin drivers-list rows for qualifying drivers (verified on Applicant One 4.0★/1 rating) and on the driver Earnings rating card (5.0/5.0 · Trusted visible). Trusted badge also wired to tracking screen driver card (code verified: /app/frontend/app/track/[kind]/[id].tsx:199-200).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "SHADOW.card in theme (used across cards)", "issue": "React Native Web deprecation warning persists: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Cosmetic only. Reference: /app/frontend/src/theme.ts SHADOW.card."},
+      {"component": "props.pointerEvents on some Pressable/View usages", "issue": "React Native Web deprecation warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Cosmetic; migrate JSX prop into style."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_round4_payouts_trusted.py",
+    "/app/test_reports/pytest/pytest_round4.xml",
+    "/app/test_reports/pytest/pytest_round4_regression.xml"
+  ],
+  "action_items": [
+    "(Optional) Update /app/backend/tests/backend_test.py::TestOrderFlow::test_preset_order_flow — its hardcoded assert order['service_fee'] == 35.0 is stale after Round 3 dynamic pabili fee (weight-based). Preserve seed store weights or relax the assertion to service_fee >= 35.",
+    "(Optional) db_mysql.py update_one/update_many/delete/find_one_and_update do a full-table load per call (SELECT * then filter in Python). Fine for MVP volume (<10k docs) but plan an index/where-clause path for high-cardinality collections (rides, orders) as data grows.",
+    "(Optional polish) Migrate SHADOW.* to boxShadow and JSX pointerEvents into style={{ pointerEvents: ... }} to silence RN Web deprecation warnings.",
+    "(Optional) parallel xdist run of the full backend suite still produces `Email already registered` on module fixtures whenever a preview backend reload happens between the two worker imports (auto-reload can duplicate the signup). Serial (-n 0) is clean. Consider setting reload=False in supervisor for backend or making signup idempotent for TEST_ emails."
+  ],
+  "critical_code_review_comments": [
+    "db_mysql.py `_matches` `$exists` uses `value is not _MISSING` — correct since missing keys return the _MISSING sentinel (line 113). Also correctly treats explicit None value as 'exists' which matches Mongo behavior.",
+    "db_mysql.py `update_one(..., upsert=True)` synthesizes `id` if not provided (line 289-291). Good — matches call-site expectations for config upsert keyed by id='pricing'.",
+    "db_mysql.py `find_one` has a fast-path for pk lookups (`id` only) but `update_one`/`delete_one` always do a full table load. Acceptable for MVP volume but flagged in action_items.",
+    "server.py admin_payouts (lines 746-803) correctly filters by `updated_at[:10]` for the date window and gates behind require_role('admin'). Returns sensible empty structure for out-of-range dates. Totals recomputed from rows so they always sum consistently. Good.",
+    "server.py rating flow now computes rating_avg/rating_count in Python (per problem statement), verified via test that /auth/me reflects the new count/avg after POST /ratings.",
+    "server.py is 1171 lines (was 1112 in R3) — still past 700-line guideline. Splitting into routers (auth, rides, orders, admin, driver, config) will make Round-5 changes safer.",
+    "frontend payouts.tsx correctly gates native-only export behind Platform.OS !== 'web' and shows an informative toast on web (line 81-84). CSV builds proper header + totals row.",
+    "frontend config.tsx: the Trusted section is validated together with the numeric fields (line 96-101). Note: trusted_min_ratings should logically be an integer — the UI accepts decimals via keyboardType='decimal-pad'. Backend currently accepts float and it works, but consider Math.floor on save or a separate keyboardType='number-pad' for ratings.",
+    "TrustedBadge component (29 lines) is a small, isolated, testID-friendly presentational component. Good.",
+    "isTrusted() in theme.ts uses default fallbacks (3, 4.5) if cfg is not loaded yet — prevents flicker/undefined-check errors at first render."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_round4_payouts_trusted.py (created)"
+  ],
+  "success_rate": {
+    "backend": "100% for Round-4 (12/12); 98.2% overall serial (54/55, 1 pre-existing R1 preset-fee assertion is stale)",
+    "frontend": "100% for the 3 Round-4 features tested (payouts card+screen+presets+summary+rows+export web toast; trusted-badge config section save+persist; trusted badge visibility on admin drivers list + driver earnings screen)"
+  },
+  "seed_data_creation": "Round-4 test file creates fresh TEST_r4_* customers per run (unique 8-hex suffix) and completes 1 ride + 1 pabili with Mang Tonyo. Config was temporarily flipped to trusted_min_ratings=1, trusted_min_avg=4 during UI verification (still that way; main agent can reset via Pricing tab or POST /api/admin/config).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base = process.env.EXPO_PUBLIC_BACKEND_URL + '/api'. Admin: admin@tagkawayan.ph / admin12345 (Email tab; testIDs: login-mode-email, login-email-input, login-password-input, login-submit-button). Seeded drivers: +639171112201/Mang Tonyo, +639171112202/Kuya Ben. Config keys now include trusted_min_ratings, trusted_min_avg (defaults 3 and 4.5). NEW endpoint: GET /api/admin/payouts?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD (admin-only) returns {from,to,report[{driver_id,driver_name,tricycle_no,rides,orders,ride_earnings,pabili_earnings,total}],totals{drivers,rides,orders,ride_earnings,pabili_earnings,total}}. Trusted badge is rendered via <TrustedBadge/> from /app/frontend/src/components/TrustedBadge.tsx driven by isTrusted(rating_avg, rating_count, cfg) in /app/frontend/src/theme.ts. Payout UI testIDs: admin-payouts-card, payout-preset-(all|today|week|month), payout-row-<driver_id>, export-payouts-button. Pricing testIDs added: config-trusted_min_ratings, config-trusted_min_avg. Pytest runs sequentially (-n 0) cleanly — xdist parallel occasionally 409s on signups if backend hot-reloads mid-fixture; prefer -n 0 for the shared MariaDB preview.",
+  "rca_of_issue": "N/A — no bugs found. Only pre-existing R1 assertion drift (test_preset_order_flow) noted in action_items."
+}

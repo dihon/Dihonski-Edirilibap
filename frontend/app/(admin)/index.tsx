@@ -87,6 +87,21 @@ export default function AdminOverview() {
           </Pressable>
         </View>
 
+        <Pressable
+          testID="admin-payouts-card"
+          onPress={() => router.push('/admin/payouts')}
+          style={({ pressed }) => [styles.payoutCard, pressed && { opacity: 0.9 }]}
+        >
+          <View style={[styles.actionIcon, { backgroundColor: COLORS.brandPrimary + '22', marginBottom: 0 }]}>
+            <Ionicons name="cash" size={22} color={COLORS.brandPrimary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.actionTitle}>Driver Payouts</Text>
+            <Text style={styles.actionSub}>Earnings report · export CSV</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.muted} />
+        </Pressable>
+
         <Text style={styles.sectionTitle}>At a glance</Text>
         <View style={styles.grid}>
           {cards.map((c) => (
@@ -123,7 +138,19 @@ const styles = StyleSheet.create({
   },
   pulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.success },
   onlineText: { color: COLORS.onBrandTertiary, fontSize: FONT.base, fontWeight: WEIGHT.medium },
-  actions: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xl },
+  actions: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.md },
+  payoutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: SPACING.xl,
+    ...SHADOW.card,
+  },
   actionCard: {
     flex: 1,
     backgroundColor: COLORS.surfaceSecondary,

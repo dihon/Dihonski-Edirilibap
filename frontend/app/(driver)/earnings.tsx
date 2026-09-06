@@ -3,19 +3,22 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso } from '@/src/theme';
+import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso, isTrusted } from '@/src/theme';
 import { Loading } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
+import { TrustedBadge } from '@/src/components/TrustedBadge';
 import { api } from '@/src/api';
 
 export default function DriverEarnings() {
   const insets = useSafeAreaInsets();
   const [data, setData] = useState<any>(null);
+  const [pricing, setPricing] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setData(await api.driverEarnings());
+      api.pricing().then(setPricing).catch(() => {});
     } catch {
       /* ignore */
     }
@@ -61,9 +64,12 @@ export default function DriverEarnings() {
             <Ionicons name="star" size={26} color={COLORS.warning} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.ratingValue}>
-              {data.rating_count > 0 ? `${Number(data.rating_avg).toFixed(1)} / 5.0` : 'No ratings yet'}
-            </Text>
+            <View style={styles.ratingValueRow}>
+              <Text style={styles.ratingValue}>
+                {data.rating_count > 0 ? `${Number(data.rating_avg).toFixed(1)} / 5.0` : 'No ratings yet'}
+              </Text>
+              {isTrusted(data.rating_avg, data.rating_count, pricing) ? <TrustedBadge compact /> : null}
+            </View>
             <Text style={styles.ratingSub}>
               {data.rating_count > 0
                 ? `Based on ${data.rating_count} customer rating${data.rating_count === 1 ? '' : 's'}`
@@ -111,6 +117,7 @@ const styles = StyleSheet.create({
   ratingCard: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: COLORS.surfaceSecondary, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border, ...SHADOW.card },
   ratingIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#FFF3D6', alignItems: 'center', justifyContent: 'center' },
   ratingValue: { fontSize: FONT.xl, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
+  ratingValueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
   ratingSub: { fontSize: FONT.base, color: COLORS.muted, marginTop: 2 },
   note: { flexDirection: 'row', gap: SPACING.sm, backgroundColor: COLORS.surfaceTertiary, padding: SPACING.md, borderRadius: RADIUS.md, marginTop: SPACING.lg },
   noteText: { flex: 1, color: COLORS.onSurfaceTertiary, fontSize: FONT.base, lineHeight: 20 },
