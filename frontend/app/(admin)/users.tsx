@@ -25,6 +25,7 @@ export default function AdminUsers() {
   const [saving, setSaving] = useState(false);
   const [deleteFor, setDeleteFor] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -97,14 +98,37 @@ export default function AdminUsers() {
 
   if (loading) return <Loading />;
 
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? users.filter((u) =>
+        [u.name, u.phone, u.email, u.tricycle_no, u.role]
+          .filter(Boolean)
+          .some((f: string) => String(f).toLowerCase().includes(q)),
+      )
+    : users;
+
   return (
     <View style={styles.container}>
       <AppHeader title="Manage Users" subtitle={`${users.length} registered`} dark />
+      <View style={styles.searchWrap}>
+        <Input
+          testID="user-search"
+          icon="search-outline"
+          placeholder="Search name, phone, email…"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          style={{ marginBottom: 0 }}
+        />
+      </View>
       <FlatList
-        data={users}
+        data={filtered}
         keyExtractor={(u) => u.id}
-        contentContainerStyle={{ padding: SPACING.lg, paddingBottom: insets.bottom + 90 }}
+        contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: insets.bottom + 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.brandPrimary} />}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No users match “{search}”.</Text>
+        }
         renderItem={({ item }) => (
           <View style={styles.userRow}>
             <Pressable
@@ -226,6 +250,8 @@ export default function AdminUsers() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.surface },
+  searchWrap: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
+  emptyText: { textAlign: 'center', color: COLORS.muted, fontSize: FONT.base, marginTop: SPACING.xl },
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',

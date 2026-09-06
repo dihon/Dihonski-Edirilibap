@@ -11,8 +11,6 @@ import { AppHeader } from '@/src/components/Header';
 import { PaymentSelector, PayMethod } from '@/src/components/PaymentSelector';
 import { api } from '@/src/api';
 
-const SERVICE_FEE = 35;
-
 export default function StoreScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -21,11 +19,14 @@ export default function StoreScreen() {
   const [store, setStore] = useState<any>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [address, setAddress] = useState('');
+  const [weight, setWeight] = useState('');
+  const [pricing, setPricing] = useState<any>(null);
   const [payment, setPayment] = useState<PayMethod>('cash');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     api.store(id).then(setStore).catch(() => toast('Could not load store', 'error'));
+    api.pricing().then(setPricing).catch(() => setPricing(null));
   }, [id]);
 
   const { itemsTotal, count } = useMemo(() => {
@@ -39,6 +40,11 @@ export default function StoreScreen() {
     }
     return { itemsTotal: total, count: c };
   }, [store, qty]);
+
+  const wKg = parseFloat(weight) || 0;
+  const serviceFee = pricing
+    ? pricing.pabili_service_fee + pricing.pabili_per_kg * wKg + pricing.pabili_per_item * count
+    : 35;
 
   const setItemQty = (itemId: string, delta: number) =>
     setQty((prev) => ({ ...prev, [itemId]: Math.max(0, (prev[itemId] || 0) + delta) }));
@@ -57,6 +63,8 @@ export default function StoreScreen() {
         store_name: store.name,
         items,
         delivery_address: address.trim(),
+        weight_kg: wKg,
+        item_count: count,
         payment_method: payment,
       })) as any;
       toast('Pabili request sent!', 'success');
@@ -87,6 +95,16 @@ export default function StoreScreen() {
           placeholder="e.g. Purok 3, malapit sa barangay hall"
           value={address}
           onChangeText={setAddress}
+        />
+
+        <Input
+          testID="store-weight-input"
+          label="Est. total weight (kg) — optional"
+          icon="barbell-outline"
+          placeholder="e.g. 5"
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="decimal-pad"
         />
 
         <Text style={styles.section}>Choose items</Text>
@@ -134,12 +152,12 @@ export default function StoreScreen() {
             <Text style={styles.sumVal}>{peso(itemsTotal)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.sumLabel}>Service fee</Text>
-            <Text style={styles.sumVal}>{peso(SERVICE_FEE)}</Text>
+            <Text style={styles.sumLabel}>Delivery fee</Text>
+            <Text style={styles.sumVal}>{peso(serviceFee)}</Text>
           </View>
           <View style={[styles.summaryRow, { marginBottom: SPACING.md }]}>
             <Text style={styles.totalLabel}>Estimated total</Text>
-            <Text style={styles.totalVal}>{peso(itemsTotal + SERVICE_FEE)}</Text>
+            <Text style={styles.totalVal}>{peso(itemsTotal + serviceFee)}</Text>
           </View>
           <Button
             testID="request-pabili-preset"

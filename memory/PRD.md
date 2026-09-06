@@ -49,3 +49,16 @@ Build a mobile app: local tricycle-hailing + market-delivery platform specifical
 ## Next Tasks
 - Gather feedback on fare zones/pricing accuracy for Tagkawayan.
 - Consider driver onboarding/verification flow.
+
+## Implemented (Round 3 — 2026-06)
+- **Admin Pricing Config** (`(admin)/config.tsx`, new "Pricing" tab): base fare, per-zone rate, pabili base service fee, per-kg rate, per-item rate, ETA base/per-zone minutes — stored in `db.config` (id="pricing"), editable live. Endpoints: `GET/POST /api/admin/config`, public `GET /api/config`.
+- **Dynamic fares**: `compute_fare` and pabili fee now read from config. Pabili delivery fee = base + per_kg×weight + per_item×item_count.
+- **Pabili weight/item inputs**: custom list tab and preset store page collect weight (kg) & item count, show live delivery-fee preview.
+- **ETA**: rides compute zone-distance ETA; orders use status-based ETA. Returned as `eta_minutes` from `GET /api/rides/{id}` & `/api/orders/{id}`. Tracking screen shows "Est. arrival ~X min" (auto-refreshes via existing 4s polling).
+- **Order detail receipt**: tracking screen shows itemized fee breakdown (items + delivery fee) and declared weight/items for pabili; reachable by tapping any activity card.
+- **Admin search boxes**: instant client-side search added to Users and Orders panels.
+
+## Backlog (updated)
+- MariaDB migration — user provided credentials (host dihonski.com, db tk_app). TCP 3306 reachable. NOT YET migrated (large effort; MongoDB still live).
+- Trusted Badge for highly-rated drivers.
+- Driver payout report export.

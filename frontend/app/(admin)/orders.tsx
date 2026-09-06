@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS, peso, RIDE_STATUS, ORDER_STATUS } from '@/src/theme';
-import { Loading, Badge, EmptyState } from '@/src/components/ui';
+import { Loading, Badge, EmptyState, Input } from '@/src/components/ui';
 import { AppHeader } from '@/src/components/Header';
 import { api } from '@/src/api';
 
@@ -14,6 +14,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'ride' | 'pabili'>('all');
+  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -39,7 +40,14 @@ export default function AdminOrders() {
     setRefreshing(false);
   };
 
-  const filtered = items.filter((i) => (filter === 'all' ? true : i.type === filter));
+  const q = search.trim().toLowerCase();
+  const filtered = items.filter((i) => {
+    if (filter !== 'all' && i.type !== filter) return false;
+    if (!q) return true;
+    return [i.customer_name, i.driver_name, i.pickup, i.dropoff, i.delivery_address, i.store_name]
+      .filter(Boolean)
+      .some((f: string) => String(f).toLowerCase().includes(q));
+  });
   const chips: { key: typeof filter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'ride', label: 'Rides' },
@@ -63,12 +71,23 @@ export default function AdminOrders() {
           </Pressable>
         ))}
       </View>
+      <View style={styles.searchWrap}>
+        <Input
+          testID="order-search"
+          icon="search-outline"
+          placeholder="Search customer, driver, address…"
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+          style={{ marginBottom: 0 }}
+        />
+      </View>
       <FlatList
         data={filtered}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ padding: SPACING.lg, paddingTop: SPACING.sm, paddingBottom: insets.bottom + 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.brandPrimary} />}
-        ListEmptyComponent={<EmptyState icon="cube-outline" title="No orders yet" />}
+        ListEmptyComponent={<EmptyState icon="cube-outline" title="No orders found" />}
         renderItem={({ item }) => {
           const isRide = item.type === 'ride';
           const meta = isRide ? RIDE_STATUS[item.status] : ORDER_STATUS[item.status];
@@ -105,6 +124,7 @@ export default function AdminOrders() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.surface },
+  searchWrap: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   chipRow: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   chip: {
     height: 36,

@@ -177,6 +177,8 @@ class OrderBody(BaseModel):
     note: Optional[str] = None
     delivery_address: str
     payment_method: str = 'cash'
+    weight_kg: Optional[float] = 0
+    item_count: Optional[int] = 0
 
 class StatusBody(BaseModel):
     status: str
@@ -226,21 +228,71 @@ class DeletionRequestBody(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
 
-# ----------------------------- Fare -----------------------------
+# ----------------------------- Pricing config & Fare -----------------------------
 
-BASE_FARE = 25.0
-PER_ZONE = 12.0
-SERVICE_FEE = 35.0
+DEFAULT_CONFIG = {
+    'base_fare': 25.0,        # minimum tricycle fare
+    'per_zone': 12.0,         # added per zone of distance
+    'pabili_service_fee': 35.0,  # base pabili delivery fee
+    'pabili_per_kg': 5.0,     # added per kilo of total weight
+    'pabili_per_item': 3.0,   # added per item requested
+    'eta_base_min': 4,        # baseline minutes for any trip
+    'eta_per_zone_min': 7,    # minutes added per zone of distance
+}
+
+async def get_config() -> dict:
+    doc = await db.config.find_one({'id': 'pricing'}, {'_id': 0}) or {}
+    cfg = dict(DEFAULT_CONFIG)
+    for k in DEFAULT_CONFIG:
+        if doc.get(k) is not None:
+            cfg[k] = doc[k]
+    return cfg
 
 async def zone_of(name: str) -> int:
     lm = await db.landmarks.find_one({'name': name}, {'_id': 0})
     return lm['zone'] if lm else 2
 
 async def compute_fare(pickup: str, dropoff: str) -> float:
+    cfg = await get_config()
     z1 = await zone_of(pickup)
     z2 = await zone_of(dropoff)
-    fare = BASE_FARE + abs(z1 - z2) * PER_ZONE
-    return round(max(BASE_FARE, fare), 2)
+    fare = cfg['base_fare'] + abs(z1 - z2) * cfg['per_zone']
+    return round(max(cfg['base_fare'], fare), 2)
+
+def compute_pabili_fee(cfg: dict, weight_kg: float, item_count: int) -> float:
+    fee = cfg['pabili_service_fee'] + cfg['pabili_per_kg'] * max(0.0, weight_kg or 0) \
+        + cfg['pabili_per_item'] * max(0, item_count or 0)
+    return round(fee, 2)
+
+async def ride_eta(ride: dict, cfg: dict) -> int:
+    st = ride.get('status')
+    if st in ('completed', 'cancelled'):
+        return 0
+    zd = ride.get('zone_distance')
+    if zd is None:
+        zd = abs(await zone_of(ride.get('pickup', '')) - await zone_of(ride.get('dropoff', '')))
+    travel = cfg['eta_base_min'] + zd * cfg['eta_per_zone_min']
+    if st == 'requested':
+        return int(travel + 5)
+    if st == 'accepted':
+        return int(travel + 3)
+    if st == 'arriving':
+        return max(2, int(travel * 0.6))
+    if st == 'in_progress':
+        return max(2, int(travel * 0.4))
+    return int(travel)
+
+def order_eta(order: dict) -> int:
+    return {'requested': 25, 'accepted': 20, 'shopping': 15, 'delivering': 8}.get(order.get('status'), 0)
+
+class ConfigBody(BaseModel):
+    base_fare: Optional[float] = None
+    per_zone: Optional[float] = None
+    pabili_service_fee: Optional[float] = None
+    pabili_per_kg: Optional[float] = None
+    pabili_per_item: Optional[float] = None
+    eta_base_min: Optional[int] = None
+    eta_per_zone_min: Optional[int] = None
 
 # ----------------------------- Auth routes -----------------------------
 
@@ -366,11 +418,22 @@ async def get_store(store_id: str):
 async def estimate(body: EstimateBody):
     return {'fare': await compute_fare(body.pickup, body.dropoff)}
 
+@api_router.get('/config')
+async def public_config():
+    """Public pricing config so customers can preview fares/fees."""
+    return await get_config()
+
+@api_router.post('/pabili/estimate')
+async def pabili_estimate(weight_kg: float = 0, item_count: int = 0):
+    cfg = await get_config()
+    return {'service_fee': compute_pabili_fee(cfg, weight_kg, item_count)}
+
 # ----------------------------- Ride routes -----------------------------
 
 @api_router.post('/rides')
 async def create_ride(body: RideBody, user: dict = Depends(get_current_user)):
     fare = await compute_fare(body.pickup, body.dropoff)
+    zone_distance = abs(await zone_of(body.pickup) - await zone_of(body.dropoff))
     doc = {
         'id': new_id(),
         'type': 'ride',
@@ -379,6 +442,7 @@ async def create_ride(body: RideBody, user: dict = Depends(get_current_user)):
         'customer_phone': user.get('phone'),
         'pickup': body.pickup,
         'dropoff': body.dropoff,
+        'zone_distance': zone_distance,
         'passengers': body.passengers,
         'note': body.note,
         'fare': fare,
@@ -407,6 +471,7 @@ async def get_ride(ride_id: str, user: dict = Depends(get_current_user)):
     ride = await db.rides.find_one({'id': ride_id}, {'_id': 0})
     if not ride:
         raise HTTPException(404, 'Ride not found')
+    ride['eta_minutes'] = await ride_eta(ride, await get_config())
     return ride
 
 RIDE_FLOW = ['requested', 'accepted', 'arriving', 'in_progress', 'completed']
@@ -453,6 +518,11 @@ async def ride_status(ride_id: str, body: StatusBody, user: dict = Depends(get_c
 async def create_order(body: OrderBody, user: dict = Depends(get_current_user)):
     items = [i.dict() for i in body.items]
     items_total = round(sum((i.get('price') or 0) * i.get('qty', 1) for i in items), 2)
+    cfg = await get_config()
+    # item_count: use provided value, else derive from preset item quantities
+    item_count = body.item_count or sum(int(i.get('qty', 1)) for i in items) or 0
+    weight_kg = float(body.weight_kg or 0)
+    service_fee = compute_pabili_fee(cfg, weight_kg, item_count)
     doc = {
         'id': new_id(),
         'type': 'pabili',
@@ -466,9 +536,11 @@ async def create_order(body: OrderBody, user: dict = Depends(get_current_user)):
         'custom_list': body.custom_list,
         'note': body.note,
         'delivery_address': body.delivery_address,
+        'weight_kg': weight_kg,
+        'item_count': item_count,
         'items_total': items_total,
-        'service_fee': SERVICE_FEE,
-        'estimated_total': round(items_total + SERVICE_FEE, 2),
+        'service_fee': service_fee,
+        'estimated_total': round(items_total + service_fee, 2),
         'payment': 'cash',
         'payment_method': body.payment_method,
         'payment_status': 'unpaid' if body.payment_method == 'gcash' else 'cash_on_delivery',
@@ -494,6 +566,7 @@ async def get_order(order_id: str, user: dict = Depends(get_current_user)):
     order = await db.orders.find_one({'id': order_id}, {'_id': 0})
     if not order:
         raise HTTPException(404, 'Order not found')
+    order['eta_minutes'] = order_eta(order)
     return order
 
 @api_router.post('/orders/{order_id}/accept')
@@ -566,6 +639,18 @@ async def driver_history(user: dict = Depends(require_role('driver'))):
     return {'rides': rides, 'orders': orders}
 
 # ----------------------------- Admin routes -----------------------------
+
+@api_router.get('/admin/config')
+async def admin_get_config(user: dict = Depends(require_role('admin'))):
+    return await get_config()
+
+@api_router.post('/admin/config')
+async def admin_update_config(body: ConfigBody, user: dict = Depends(require_role('admin'))):
+    update = {k: v for k, v in body.dict().items() if v is not None}
+    if not update:
+        raise HTTPException(422, 'No values to update')
+    await db.config.update_one({'id': 'pricing'}, {'$set': update}, upsert=True)
+    return await get_config()
 
 @api_router.get('/admin/stats')
 async def admin_stats(user: dict = Depends(require_role('admin'))):

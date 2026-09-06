@@ -134,6 +134,12 @@ export default function Track() {
               ? 'Your driver is on it.'
               : 'Hang tight, hinahanap namin ang pinakamalapit na driver.'}
           </Text>
+          {!cancelled && !completed && data.eta_minutes ? (
+            <View style={styles.etaPill}>
+              <Ionicons name="time-outline" size={16} color={COLORS.brandPrimary} />
+              <Text style={styles.etaText}>Est. arrival ~{data.eta_minutes} min</Text>
+            </View>
+          ) : null}
         </View>
 
         {!cancelled ? (
@@ -235,8 +241,30 @@ export default function Track() {
                 </View>
               )}
               {data.note ? <Detail icon="chatbubble-outline" label="Note" value={data.note} /> : null}
+              {data.item_count || data.weight_kg ? (
+                <Detail
+                  icon="cube-outline"
+                  label="Declared"
+                  value={[
+                    data.item_count ? `${data.item_count} item${data.item_count === 1 ? '' : 's'}` : null,
+                    data.weight_kg ? `${data.weight_kg} kg` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                />
+              ) : null}
+              <View style={styles.feeBreak}>
+                <View style={styles.feeBreakRow}>
+                  <Text style={styles.feeBreakLabel}>Items</Text>
+                  <Text style={styles.feeBreakVal}>{peso(data.items_total)}</Text>
+                </View>
+                <View style={styles.feeBreakRow}>
+                  <Text style={styles.feeBreakLabel}>Delivery fee</Text>
+                  <Text style={styles.feeBreakVal}>{peso(data.service_fee)}</Text>
+                </View>
+              </View>
               <View style={styles.totalBar}>
-                <Text style={styles.totalBarLabel}>Est. total + fee (cash)</Text>
+                <Text style={styles.totalBarLabel}>Est. total (cash)</Text>
                 <Text style={styles.totalBarVal}>{peso(data.estimated_total)}</Text>
               </View>
             </>
@@ -368,6 +396,21 @@ const styles = StyleSheet.create({
   },
   statusTitle: { fontSize: FONT.xl, color: COLORS.onSurface, fontWeight: WEIGHT.medium },
   statusSub: { fontSize: FONT.base, color: COLORS.muted, textAlign: 'center', marginTop: SPACING.xs, lineHeight: 20 },
+  etaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.surfaceSecondary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.pill,
+    marginTop: SPACING.md,
+  },
+  etaText: { fontSize: FONT.base, color: COLORS.brandPrimary, fontWeight: WEIGHT.medium },
+  feeBreak: { marginTop: SPACING.sm },
+  feeBreakRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: SPACING.xs },
+  feeBreakLabel: { fontSize: FONT.base, color: COLORS.muted },
+  feeBreakVal: { fontSize: FONT.base, color: COLORS.onSurface },
   timelineRow: { flexDirection: 'row', gap: SPACING.md },
   timelineLeft: { alignItems: 'center', width: 24 },
   node: {

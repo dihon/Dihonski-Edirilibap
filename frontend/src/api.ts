@@ -67,6 +67,7 @@ export const api = {
   me: () => request('/auth/me'),
   // catalog
   landmarks: () => request('/landmarks', { auth: false }),
+  pricing: () => request('/config', { auth: false }),
   stores: () => request('/stores', { auth: false }),
   store: (id: string) => request(`/stores/${id}`, { auth: false }),
   estimate: (pickup: string, dropoff: string) =>
@@ -107,6 +108,8 @@ export const api = {
     return request(`/admin/list?${qs}`);
   },
   adminOrders: () => request('/admin/orders'),
+  adminConfig: () => request('/admin/config'),
+  updateConfig: (b: Record<string, number>) => request('/admin/config', { method: 'POST', body: b }),
   setRole: (id: string, role: string, tricycle_no?: string) =>
     request(`/admin/users/${id}/role`, { method: 'POST', body: { role, tricycle_no } }),
   // driver application

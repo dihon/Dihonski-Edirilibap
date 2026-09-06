@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT, WEIGHT, RADIUS, SHADOW, peso } from '@/src/theme';
@@ -86,8 +85,21 @@ function CustomTab() {
   const [list, setList] = useState('');
   const [address, setAddress] = useState('');
   const [note, setNote] = useState('');
+  const [weight, setWeight] = useState('');
+  const [itemCount, setItemCount] = useState('');
+  const [pricing, setPricing] = useState<any>(null);
   const [payment, setPayment] = useState<PayMethod>('cash');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    api.pricing().then(setPricing).catch(() => setPricing(null));
+  }, []);
+
+  const wKg = parseFloat(weight) || 0;
+  const iCount = parseInt(itemCount, 10) || 0;
+  const fee = pricing
+    ? pricing.pabili_service_fee + pricing.pabili_per_kg * wKg + pricing.pabili_per_item * iCount
+    : 35;
 
   const submit = async () => {
     if (list.trim().length < 3) return toast('Please write what you need', 'error');
@@ -100,6 +112,8 @@ function CustomTab() {
         delivery_address: address.trim(),
         note: note.trim(),
         items: [],
+        weight_kg: wKg,
+        item_count: iCount,
         payment_method: payment,
       })) as any;
       toast('Pabili request sent!', 'success');
@@ -129,6 +143,30 @@ function CustomTab() {
             style={{ minHeight: 140, textAlignVertical: 'top' }}
           />
         </View>
+        <View style={styles.row}>
+          <View style={styles.rowItem}>
+            <Input
+              testID="custom-item-count"
+              label="No. of items"
+              icon="cube-outline"
+              placeholder="e.g. 5"
+              value={itemCount}
+              onChangeText={setItemCount}
+              keyboardType="number-pad"
+            />
+          </View>
+          <View style={styles.rowItem}>
+            <Input
+              testID="custom-weight"
+              label="Est. weight (kg)"
+              icon="barbell-outline"
+              placeholder="e.g. 3"
+              value={weight}
+              onChangeText={setWeight}
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
         <Input
           testID="custom-address-input"
           label="Deliver to (address / landmark)"
@@ -145,10 +183,15 @@ function CustomTab() {
           value={note}
           onChangeText={setNote}
         />
-        <View style={styles.info}>
-          <Ionicons name="information-circle-outline" size={20} color={COLORS.info} />
-          <Text style={styles.infoText}>
-            A {peso(35)} service fee is added. You pay the item cost + fee on delivery.
+        <View style={styles.feeCard}>
+          <View style={styles.feeRow}>
+            <Text style={styles.feeLabel}>Estimated delivery fee</Text>
+            <Text style={styles.feeVal}>{peso(fee)}</Text>
+          </View>
+          <Text style={styles.feeHint}>
+            Base {peso(pricing?.pabili_service_fee ?? 35)}
+            {iCount ? ` + ${iCount} item${iCount === 1 ? '' : 's'}` : ''}
+            {wKg ? ` + ${wKg}kg` : ''}. You also pay the item cost on delivery.
           </Text>
         </View>
         <Text style={[styles.label, { marginTop: SPACING.lg }]}>Payment method</Text>
@@ -207,15 +250,18 @@ const styles = StyleSheet.create({
   storeItems: { fontSize: FONT.sm, color: COLORS.muted, marginTop: 2 },
   label: { fontSize: FONT.base, color: COLORS.muted, fontWeight: WEIGHT.medium, marginBottom: SPACING.sm },
   textAreaWrap: { marginBottom: SPACING.xs },
-  info: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
+  row: { flexDirection: 'row', gap: SPACING.md },
+  rowItem: { flex: 1 },
+  feeCard: {
     backgroundColor: COLORS.surfaceTertiary,
     padding: SPACING.md,
     borderRadius: RADIUS.md,
     marginTop: SPACING.sm,
   },
-  infoText: { flex: 1, color: COLORS.onSurfaceTertiary, fontSize: FONT.base, lineHeight: 20 },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  feeLabel: { fontSize: FONT.base, color: COLORS.onSurfaceTertiary, fontWeight: WEIGHT.medium },
+  feeVal: { fontSize: FONT.lg, color: COLORS.brandPrimary, fontWeight: WEIGHT.medium },
+  feeHint: { fontSize: FONT.sm, color: COLORS.muted, marginTop: SPACING.xs, lineHeight: 18 },
   footer: {
     backgroundColor: COLORS.surfaceSecondary,
     paddingHorizontal: SPACING.lg,

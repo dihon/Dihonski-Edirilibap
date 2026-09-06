@@ -1,0 +1,46 @@
+{
+  "summary": "Round 3 features (admin dynamic pricing config, dynamic pabili fee with weight/item_count, dynamic ride fare + zone_distance persistence, ETA on ride & order, admin Users/Orders search boxes, tracking-screen ETA + pabili receipt breakdown, activity card → completed order receipt) validated end-to-end. Backend: 14/14 new-feature pytest cases pass (test_round3_pricing_eta.py). Ride fare 25 + 12*zd and pabili fee 35 + 5*kg + 3*item; after admin POST /api/admin/config the public GET /api/config immediately reflects new values and new orders use the new pricing. GET /api/rides/{id} returns eta_minutes that decreases requested→accepted→arriving→in_progress and is 0 on completed. GET /api/orders/{id} returns eta_minutes by status (25/20/15/8/0). Frontend admin: Pricing tab renders all 7 config fields with testIDs (config-base_fare etc), Save persists (verified by navigating away & back — pabili_per_kg 5→7→5). Users tab search filters 31→2 for 'Tonyo'. Orders tab search filters 24→8 for 'Camflora'. Customer Pabili custom-list: entering item count=4 and weight=3 kg live-updates 'Estimated delivery fee' to ₱62 and after submit backend returns service_fee=62 — tracking screen shows Est. arrival ~25 min plus Delivery fee ₱62. Preset store: 3 items + 2 kg → live Delivery fee ₱54, Estimated total ₱358 (2×₱52 + 1×₱200 + ₱54) — track screen shows Delivery fee ₱54 and Est. arrival ~25 min. Activity card tap opens completed order receipt (ORDER DETAILS section w/ items, weight, driver, delivery fee) at /track/pabili/{id}. Regression: iteration_1 (26/26) and iteration_2 (15/15) suites remain intact — no changes required.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "shadow* style props (multiple screens via /app/frontend/src/theme.ts SHADOW.card)", "issue": "React Native Web deprecation warning persists: '\"shadow*\" style props are deprecated. Use \"boxShadow\".' Cosmetic on web preview. Reference: /app/frontend/src/theme.ts (SHADOW.card)."},
+      {"component": "props.pointerEvents (Pressable/View usages)", "issue": "React Native Web deprecation warning: 'props.pointerEvents is deprecated. Use style.pointerEvents'. Cosmetic; migrate JSX pointerEvents prop into style."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_round3_pricing_eta.py",
+    "/app/backend/tests/test_new_features.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_round3.xml"
+  ],
+  "action_items": [
+    "(Optional polish) Migrate SHADOW.* to boxShadow in /app/frontend/src/theme.ts to silence RN Web deprecation warnings.",
+    "(Optional polish) Move JSX pointerEvents props into style={{ pointerEvents: ... }}."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1112 lines (up from 908) — past the 700-line guideline. Consider splitting: config/pricing router, rides router, orders router, admin router, driver router.",
+    "get_config() correctly merges DEFAULT_CONFIG with DB overrides so partial updates work (server.py:243-249). Good.",
+    "compute_pabili_fee uses max(0.0, weight_kg or 0) & max(0, item_count or 0) guarding against negative values (server.py:262-265). Good.",
+    "compute_fare uses max(base_fare, computed) so short trips can never dip below base (server.py:255-260). Good.",
+    "ride_eta correctly returns 0 for completed/cancelled and progressively decreases during arriving/in_progress (server.py:267-283). Good.",
+    "POST /api/orders derives item_count from preset qtys when body.item_count not set (server.py:522-524). Good fallback.",
+    "POST /admin/config rejects empty body with 422 (server.py:650-651). Good input validation.",
+    "Config is a single doc keyed by id='pricing' (upsert). No versioning/history — acceptable for MVP but consider audit log later.",
+    "Admin config update returns full merged config (server.py:653) so the client can update state atomically. Good UX."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_round3_pricing_eta.py (created)"
+  ],
+  "success_rate": {
+    "backend": "100% (14/14 round-3 + 15/15 round-2 + 26/26 round-1 = 55/55 cumulative)",
+    "frontend": "100% for all Round-3 flows tested (admin pricing tab save+persist, users search, orders search, pabili custom live fee + track ETA + fee, pabili preset live fee + estimated total + track ETA + fee, activity card → receipt)"
+  },
+  "seed_data_creation": "Round-3 pytest created two TEST_-prefixed customers (TEST_r3_* fixtures) and left several TEST orders/rides in requested state. Frontend testing also produced ~3 fresh signup customers (R3Cust*, R3PresetC*, ActX*) and 1 completed order (through Mang Tonyo). Config was flipped to non-default values during test then reset back to defaults (base_fare=25, per_zone=12, pabili_service_fee=35, pabili_per_kg=5, pabili_per_item=3, eta_base_min=4, eta_per_zone_min=7).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend base = process.env.EXPO_PUBLIC_BACKEND_URL + '/api'. Admin: admin@tagkawayan.ph / admin12345 (Email tab, testID login-mode-email). Seeded drivers: '+639171112201'/'Mang Tonyo' (TRK-101), '+639171112202'/'Kuya Ben' (TRK-205). Round-3 endpoints: GET/POST /admin/config, GET /config (public), POST /pabili/estimate?weight_kg&item_count. Config keys: base_fare, per_zone, pabili_service_fee, pabili_per_kg, pabili_per_item, eta_base_min, eta_per_zone_min. Order model gained: weight_kg, item_count, service_fee, estimated_total; Ride model gained: zone_distance; both GETs return eta_minutes. Auth token key in localStorage on web is 'tk_auth_token' (JSON-stringified, strip quotes). testIDs for R3 UI: config-<field>, save-config-button, user-search, order-search, custom-item-count, custom-weight, custom-list-input, custom-address-input, request-pabili-custom, store-weight-input, store-address-input, add-<itemId>/plus-<id>/minus-<id>, request-pabili-preset, activity-card-<orderId>. Reuse /app/backend/tests/test_round3_pricing_eta.py + earlier suites.",
+  "rca_of_issue": "N/A — no bugs found."
+}
